@@ -22,9 +22,18 @@ export type StepKind = (typeof STEP_KINDS)[number];
 // H.264/yuv420p (Remotion's default codec) needs even dimensions.
 const MAX_DIMENSION = 7680;
 const MAX_FPS = 60;
+// Bounds keep validation cheap on hostile input and specs renderable.
+const MAX_ID_LENGTH = 64;
+const MAX_TEXT_LENGTH = 200;
+const MAX_NODES = 500;
+const MAX_GROUPS = 100;
+const MAX_EDGES = 2000;
+const MAX_STEPS = 2000;
+export const MAX_STEP_MS = 60_000;
 
 const Id = z
   .string()
+  .max(MAX_ID_LENGTH)
   .regex(
     /^[A-Za-z][A-Za-z0-9_-]*$/,
     "must start with a letter and contain only letters, digits, - or _",
@@ -45,7 +54,10 @@ export const Duration = z
     return unit === "ms" ? Number(amount) : Number(amount) * 1000;
   })
   .refine((ms) => ms > 0, "must be greater than 0")
+  .refine((ms) => ms <= MAX_STEP_MS, `must be at most ${MAX_STEP_MS / 1000}s`)
   .meta({ description: 'Seconds as a number, or a string like "1.2s" or "500ms"' });
+
+const Text = z.string().min(1).max(MAX_TEXT_LENGTH);
 
 const Dimension = z
   .int()
@@ -55,7 +67,7 @@ const Dimension = z
 
 export const NodeSchema = z.strictObject({
   id: Id,
-  label: z.string().min(1).optional().meta({ description: "Display text; defaults to id" }),
+  label: Text.optional().meta({ description: "Display text; defaults to id" }),
   icon: z.enum(ICONS).optional(),
   group: Id.optional().meta({ description: "Id of the group this node sits in" }),
   position: z
@@ -66,13 +78,13 @@ export const NodeSchema = z.strictObject({
 
 export const GroupSchema = z.strictObject({
   id: Id,
-  label: z.string().min(1).optional(),
+  label: Text.optional(),
 });
 
 export const EdgeSchema = z.strictObject({
   from: Id,
   to: Id,
-  label: z.string().min(1).optional(),
+  label: Text.optional(),
 });
 
 const stepDuration = Duration.optional().meta({
@@ -80,7 +92,7 @@ const stepDuration = Duration.optional().meta({
 });
 
 export const RevealStep = z.strictObject({
-  reveal: z.array(Id).min(1).meta({ description: "Node or group ids to fade in" }),
+  reveal: z.array(Id).min(1).max(MAX_NODES).meta({ description: "Node or group ids to fade in" }),
   duration: stepDuration,
 });
 
@@ -88,15 +100,15 @@ export const FlowStep = z.strictObject({
   flow: z.strictObject({
     from: Id,
     to: Id,
-    label: z.string().min(1).optional(),
+    label: Text.optional(),
   }),
   duration: stepDuration,
 });
 
 export const HighlightStep = z.strictObject({
   highlight: z.strictObject({
-    nodes: z.array(Id).min(1),
-    caption: z.string().min(1).optional(),
+    nodes: z.array(Id).min(1).max(MAX_NODES),
+    caption: Text.optional(),
   }),
   duration: stepDuration,
 });
@@ -105,7 +117,7 @@ export const FailStep = z.strictObject({
   fail: z.strictObject({
     node: Id,
     effect: z.enum(FAIL_EFFECTS).default("shake"),
-    label: z.string().min(1).optional(),
+    label: Text.optional(),
   }),
   duration: stepDuration,
 });
@@ -127,6 +139,7 @@ export const StepSchema = z.union([RevealStep, FlowStep, HighlightStep, FailStep
 
 export const SpecSchema = z
   .strictObject({
+    $schema: z.string().optional().meta({ description: "JSON Schema URL, for editors" }),
     version: z.literal(1),
     theme: z.enum(["dark", "light"]).default("dark"),
     canvas: z
@@ -136,10 +149,10 @@ export const SpecSchema = z
         fps: z.int().positive().max(MAX_FPS).default(30),
       })
       .default({ width: 1920, height: 1080, fps: 30 }),
-    nodes: z.array(NodeSchema).min(1),
-    groups: z.array(GroupSchema).default([]),
-    edges: z.array(EdgeSchema).default([]),
-    steps: z.array(StepSchema).default([]),
+    nodes: z.array(NodeSchema).min(1).max(MAX_NODES),
+    groups: z.array(GroupSchema).max(MAX_GROUPS).default([]),
+    edges: z.array(EdgeSchema).max(MAX_EDGES).default([]),
+    steps: z.array(StepSchema).max(MAX_STEPS).default([]),
   })
   .meta({ title: "archreel spec", description: "Declarative architecture explainer video" });
 

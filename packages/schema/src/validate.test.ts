@@ -180,6 +180,94 @@ describe("invalid specs", () => {
     expect(problems(overrides)).toEqual(expected);
   });
 
+  // Regressions from the M1 schema review.
+  it.each([
+    [
+      "duration over the cap hints at ms",
+      { steps: [{ reveal: ["pg"], duration: 500 }] },
+      ['steps[0].duration: must be at most 60s (bare numbers are seconds — did you mean "500ms"?)'],
+    ],
+    [
+      "infinite duration",
+      { steps: [{ pause: "99999999999999999999999999s" }] },
+      ["steps[0].pause: must be at most 60s"],
+    ],
+    [
+      "non-duration types get the duration message",
+      { steps: [{ reveal: ["pg"], duration: true }] },
+      ['steps[0].duration: expected a duration like "1.2s" or "500ms", got true'],
+    ],
+    [
+      "pause with a sibling duration",
+      { steps: [{ pause: "1s", duration: "2s" }] },
+      ['steps[0].duration: "pause" takes its duration as its value, e.g. "- pause: 2s"'],
+    ],
+    [
+      "action field at step level",
+      { steps: [{ fail: { node: "pg" }, label: "down" }] },
+      [
+        'steps[0].label: unknown key "label" next to "fail:" — move it inside, e.g. "fail: { label: … }"',
+      ],
+    ],
+    [
+      "known key in the wrong place",
+      { nodes: [{ id: "a", caption: "x" }], edges: [] },
+      ['nodes[0].caption: "caption" is not allowed here'],
+    ],
+    [
+      "unknown key that may be from a newer version",
+      { nodes: [{ id: "a", shadow: true }], edges: [] },
+      [
+        'nodes[0].shadow: unknown key "shadow" — check the spelling, or it may need a newer archreel',
+      ],
+    ],
+    [
+      "control characters in keys are escaped",
+      { nodes: [{ id: "a", "\u001b[31mX": 1 }], edges: [] },
+      [
+        'nodes[0].\u001b[31mX: unknown key "\\u001b[31mX" — check the spelling, or it may need a newer archreel',
+      ],
+    ],
+    [
+      "flow from a node to itself",
+      { steps: [{ flow: { from: "api", to: "api" } }] },
+      ["steps[0].flow: a flow needs two different nodes"],
+    ],
+    [
+      "id length is bounded",
+      { nodes: [{ id: "a".repeat(65) }], edges: [] },
+      ["nodes[0].id: must be <= 64"],
+    ],
+  ])("%s", (_name, overrides, expected) => {
+    expect(problems(overrides)).toEqual(expected);
+  });
+
+  it("still checks references when edges, groups or canvas are broken", () => {
+    expect(
+      problems({
+        canvas: { width: 1921 },
+        groups: [{ id: "vpc", lable: "VPC" }],
+        edges: [{ from: "client", to: "api", lable: "x" }],
+        steps: [{ flow: { from: "client", to: "postgres" } }],
+      }),
+    ).toEqual([
+      "canvas.width: must be even (H.264 video requires even dimensions)",
+      'groups[0].lable: unknown key "lable" — did you mean "label"?',
+      'edges[0].lable: unknown key "lable" — did you mean "label"?',
+      'steps[0].flow.to: unknown node "postgres" — did you mean "pg"?',
+    ]);
+  });
+
+  it("stays fast on many unknown references", () => {
+    const n = 500;
+    const nodes = Array.from({ length: n }, (_, i) => ({ id: `n${"x".repeat(60)}${i}` }));
+    const edges = nodes.map((node) => ({ from: node.id, to: `u${"y".repeat(60)}` }));
+    const started = performance.now();
+    const issues = problems({ nodes, edges: edges.slice(0, 2000) });
+    expect(issues).toHaveLength(n);
+    expect(performance.now() - started).toBeLessThan(2000);
+  });
+
   it("reports structural and reference problems in one run", () => {
     expect(
       problems({
@@ -200,9 +288,9 @@ describe("loadSpec", () => {
     const source = readFileSync(new URL("invalid/typo.yaml", examples), "utf8");
     const result = loadSpec(source);
     expect(result.ok ? "" : formatIssues("typo.yaml", result.issues)).toMatchInlineSnapshot(`
-      "typo.yaml:7:34 nodes[1].icon: expected a built-in icon, got "sever" — did you mean "server"?
-      typo.yaml:16:46 steps[1].flow.duration: unknown key "duration" in flow — move it up one level, next to "flow:"
-      typo.yaml:17:28 steps[2].flow.to: unknown node "postgres" — did you mean "pg"?
+      "typo.yaml:7:28 nodes[1].icon: expected a built-in icon, got "sever" — did you mean "server"?
+      typo.yaml:16:36 steps[1].flow.duration: unknown key "duration" in flow — move it up one level, next to "flow:"
+      typo.yaml:17:24 steps[2].flow.to: unknown node "postgres" — did you mean "pg"?
       typo.yaml:18:5 steps[3]: unknown step; expected one of reveal, flow, highlight, fail, pause — did you mean "highlight"?"
     `);
   });
@@ -224,6 +312,44 @@ describe("loadSpec", () => {
   it("rejects duplicate YAML keys", () => {
     const result = loadSpec("version: 1\nversion: 1\nnodes: [{ id: a }]\n");
     expect(!result.ok && result.issues[0]?.message).toMatch(/^invalid YAML/);
+  });
+
+  it("never throws on an alias bomb", () => {
+    const bomb = [
+      "a: &a [x, x, x, x, x, x, x, x, x, x]",
+      "b: &b [*a, *a, *a, *a, *a, *a, *a, *a, *a, *a]",
+      "c: &c [*b, *b, *b, *b, *b, *b, *b, *b, *b, *b]",
+    ].join("\n");
+    const result = loadSpec(bomb);
+    expect(!result.ok && result.issues[0]?.message).toMatch(/^invalid YAML: Excessive alias count/);
+  });
+
+  it("rejects oversized input before parsing", () => {
+    const result = loadSpec(`# ${"x".repeat(1_000_001)}`);
+    expect(!result.ok && result.issues[0]?.message).toBe("spec is larger than 1 MB");
+  });
+
+  it("treats numeric labels as text, keeping their source form", () => {
+    const result = loadSpec(
+      "version: 1\nnodes: [{ id: a, label: 429 }, { id: b, label: 1.0 }]\nsteps:\n  - highlight: { nodes: [a], caption: 404 }\n",
+    );
+    expect(result.ok && result.spec.nodes.map((n) => n.label)).toEqual(["429", "1.0"]);
+    expect(result.ok && result.spec.steps[0]).toEqual({
+      highlight: { nodes: ["a"], caption: "404" },
+    });
+  });
+
+  it("hints at quoting when a flow map value contains a colon", () => {
+    const result = loadSpec("version: 1\nnodes: [{ id: a, label: Retry-After: 30 }]\n");
+    expect(!result.ok && result.issues.map((i) => i.message).join("\n")).toContain(
+      'wrap it in quotes, e.g. label: "Retry-After: 30"',
+    );
+  });
+
+  it("allows a $schema key for editors", () => {
+    expect(loadSpec('$schema: "./archreel.schema.json"\nversion: 1\nnodes: [{ id: a }]\n').ok).toBe(
+      true,
+    );
   });
 
   it("accepts JSON", () => {

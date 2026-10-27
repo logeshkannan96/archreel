@@ -3,6 +3,10 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "properties": {
+    "$schema": {
+      "description": "JSON Schema URL, for editors",
+      "type": "string"
+    },
     "version": {
       "type": "number",
       "const": 1
@@ -48,19 +52,22 @@
     },
     "nodes": {
       "minItems": 1,
+      "maxItems": 500,
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string",
+            "maxLength": 64,
             "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
             "description": "Identifier referenced by edges and steps"
           },
           "label": {
             "description": "Display text; defaults to id",
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 200
           },
           "icon": {
             "type": "string",
@@ -81,6 +88,7 @@
           "group": {
             "description": "Id of the group this node sits in",
             "type": "string",
+            "maxLength": 64,
             "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
           },
           "position": {
@@ -109,18 +117,21 @@
     },
     "groups": {
       "default": [],
+      "maxItems": 100,
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string",
+            "maxLength": 64,
             "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
             "description": "Identifier referenced by edges and steps"
           },
           "label": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 200
           }
         },
         "required": [
@@ -131,23 +142,27 @@
     },
     "edges": {
       "default": [],
+      "maxItems": 2000,
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
           "from": {
             "type": "string",
+            "maxLength": 64,
             "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
             "description": "Identifier referenced by edges and steps"
           },
           "to": {
             "type": "string",
+            "maxLength": 64,
             "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
             "description": "Identifier referenced by edges and steps"
           },
           "label": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 200
           }
         },
         "required": [
@@ -158,6 +173,7 @@
       }
     },
     "steps": {
+      "maxItems": 2000,
       "type": "array",
       "items": {
         "anyOf": [
@@ -166,9 +182,11 @@
             "properties": {
               "reveal": {
                 "minItems": 1,
+                "maxItems": 500,
                 "type": "array",
                 "items": {
                   "type": "string",
+                  "maxLength": 64,
                   "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
                   "description": "Identifier referenced by edges and steps"
                 },
@@ -201,17 +219,20 @@
                 "properties": {
                   "from": {
                     "type": "string",
+                    "maxLength": 64,
                     "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
                     "description": "Identifier referenced by edges and steps"
                   },
                   "to": {
                     "type": "string",
+                    "maxLength": 64,
                     "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
                     "description": "Identifier referenced by edges and steps"
                   },
                   "label": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 200
                   }
                 },
                 "required": [
@@ -247,16 +268,19 @@
                 "properties": {
                   "nodes": {
                     "minItems": 1,
+                    "maxItems": 500,
                     "type": "array",
                     "items": {
                       "type": "string",
+                      "maxLength": 64,
                       "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
                       "description": "Identifier referenced by edges and steps"
                     }
                   },
                   "caption": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 200
                   }
                 },
                 "required": [
@@ -291,6 +315,7 @@
                 "properties": {
                   "node": {
                     "type": "string",
+                    "maxLength": 64,
                     "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
                     "description": "Identifier referenced by edges and steps"
                   },
@@ -304,7 +329,8 @@
                   },
                   "label": {
                     "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 200
                   }
                 },
                 "required": [

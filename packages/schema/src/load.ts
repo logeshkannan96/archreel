@@ -1,4 +1,4 @@
-import { LineCounter, isNode, parseDocument, type Document } from "yaml";
+import { LineCounter, isNode, isScalar, parseDocument, visit, type Document } from "yaml";
 import type { Spec } from "./spec.js";
 import { formatPath, validateSpec, type Issue, type IssuePath } from "./validate.js";
 
@@ -10,23 +10,43 @@ export interface LocatedIssue extends Issue {
 
 export type LoadResult = { ok: true; spec: Spec } | { ok: false; issues: LocatedIssue[] };
 
-/** Parse YAML (or JSON, a YAML subset) and validate, attaching source locations to issues. */
-export function loadSpec(source: string): LoadResult {
-  const lineCounter = new LineCounter();
-  const doc = parseDocument(source, { lineCounter, prettyErrors: false });
+/** Larger specs are rejected before parsing; real specs are a few KB. */
+export const MAX_SPEC_BYTES = 1_000_000;
 
-  if (doc.errors.length > 0) {
-    return {
-      ok: false,
-      issues: doc.errors.map((e) => ({
-        path: [],
-        message: `invalid YAML: ${firstLine(e.message)}`,
-        ...linePos(lineCounter, e.pos[0]),
-      })),
-    };
+/** Text fields where YAML's number typing (`label: 429`) is never what the author meant. */
+const TEXT_KEYS = new Set(["label", "caption"]);
+
+/**
+ * Parse YAML (or JSON, a YAML subset) and validate, attaching source locations to issues.
+ * Never throws: malformed or hostile input becomes issues.
+ */
+export function loadSpec(source: string): LoadResult {
+  if (source.length > MAX_SPEC_BYTES) {
+    return fail(`spec is larger than ${MAX_SPEC_BYTES / 1_000_000} MB`);
+  }
+  const lineCounter = new LineCounter();
+  let doc: Document;
+  let data: unknown;
+  try {
+    doc = parseDocument(source, { lineCounter, prettyErrors: false });
+    if (doc.errors.length > 0) {
+      return {
+        ok: false,
+        issues: doc.errors.map((e) => ({
+          path: [],
+          message: `invalid YAML: ${firstLine(e.message)}${e.code === "BLOCK_IN_FLOW" ? QUOTE_HINT : ""}`,
+          ...linePos(lineCounter, e.pos[0]),
+        })),
+      };
+    }
+    coerceTextScalars(doc);
+    data = doc.toJS();
+  } catch (err) {
+    // e.g. alias bombs ("Excessive alias count") or parser range errors
+    return fail(`invalid YAML: ${err instanceof Error ? firstLine(err.message) : String(err)}`);
   }
 
-  const result = validateSpec(doc.toJS());
+  const result = validateSpec(data);
   if (result.ok) return result;
   const issues: LocatedIssue[] = result.issues.map((issue) => ({
     ...issue,
@@ -34,6 +54,24 @@ export function loadSpec(source: string): LoadResult {
   }));
   issues.sort((a, b) => (a.line ?? 0) - (b.line ?? 0) || (a.col ?? 0) - (b.col ?? 0));
   return { ok: false, issues };
+}
+
+const QUOTE_HINT = ' (if a value contains ": ", wrap it in quotes, e.g. label: "Retry-After: 30")';
+
+function fail(message: string): LoadResult {
+  return { ok: false, issues: [{ path: [], message }] };
+}
+
+/** `label: 429` → "429", keeping the source text so `1.0` stays "1.0". */
+function coerceTextScalars(doc: Document): void {
+  visit(doc, {
+    Pair(_, pair) {
+      const { key, value } = pair;
+      if (isScalar(key) && TEXT_KEYS.has(String(key.value)) && isScalar(value)) {
+        if (typeof value.value === "number" && value.source) value.value = value.source;
+      }
+    },
+  });
 }
 
 /** `file:line:col path: message`, one per line — clickable in most terminals and editors. */
@@ -53,8 +91,8 @@ function offsetOf(doc: Document, path: IssuePath): number | undefined {
     const sub = path.slice(0, len);
     const node: unknown = sub.length === 0 ? doc.contents : doc.getIn(sub, true);
     if (isNode(node) && node.range) {
-      // A missing key is better pointed at its parent's key than the parent's whole body.
-      return len < path.length ? (keyOffset(doc, sub) ?? node.range[0]) : node.range[0];
+      // Point at the key (`to:`), or for a missing key at its parent's key, rather than a body.
+      return keyOffset(doc, sub) ?? node.range[0];
     }
   }
   return undefined;

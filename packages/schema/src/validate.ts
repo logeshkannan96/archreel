@@ -1,5 +1,13 @@
 import type { z } from "zod";
-import { ICONS, STEP_KINDS, STEP_SCHEMAS, SpecSchema, type Spec, type StepKind } from "./spec.js";
+import {
+  ICONS,
+  MAX_STEP_MS,
+  STEP_KINDS,
+  STEP_SCHEMAS,
+  SpecSchema,
+  type Spec,
+  type StepKind,
+} from "./spec.js";
 
 export type IssuePath = (string | number)[];
 
@@ -26,25 +34,37 @@ export function validateSpec(input: unknown): ValidationResult {
 
 /**
  * Copy of `input` with invalid parts replaced so the rest can still be checked:
- * a broken step becomes a no-op pause (indices stay stable), a broken node
- * field is dropped. Anything else can't be neutralized safely → undefined.
+ * a broken step becomes a no-op pause (indices stay stable), a broken optional
+ * field is dropped, a broken top-level setting falls back to its default.
+ * Anything else can't be neutralized safely → undefined.
  */
 function neutralize(input: unknown, issues: readonly Issue[]): unknown {
   const copy: unknown = structuredClone(input);
   if (!isRecord(copy)) return undefined;
   for (const { path } of issues) {
     const [section, index, field] = path;
-    const list = typeof section === "string" ? copy[section] : undefined;
-    if (!Array.isArray(list) || typeof index !== "number") return undefined;
-    const item: unknown = list[index];
-    if (section === "steps") list[index] = { pause: 1 };
-    // Every node field except `id` is optional, so dropping a broken one is safe.
-    else if (section === "nodes" && isRecord(item) && typeof field === "string" && field !== "id") {
-      Reflect.deleteProperty(item, field);
-    } else return undefined;
+    if (section === "version") copy.version = 1;
+    else if (section === "theme" || section === "canvas" || section === "$schema") {
+      Reflect.deleteProperty(copy, section);
+    } else {
+      const list = typeof section === "string" ? copy[section] : undefined;
+      if (!Array.isArray(list) || typeof index !== "number") return undefined;
+      const item: unknown = list[index];
+      const required = REQUIRED_FIELDS[section as keyof typeof REQUIRED_FIELDS] ?? [];
+      if (section === "steps") list[index] = { pause: 1 };
+      else if (isRecord(item) && typeof field === "string" && !required.includes(field)) {
+        Reflect.deleteProperty(item, field);
+      } else return undefined;
+    }
   }
   return copy;
 }
+
+const REQUIRED_FIELDS: Partial<Record<string, readonly string[]>> = {
+  nodes: ["id"],
+  groups: ["id"],
+  edges: ["from", "to"],
+};
 
 export function formatPath(path: IssuePath): string {
   return path.reduce<string>(
@@ -67,6 +87,9 @@ function toIssues(issue: ZodIssue, root: unknown, base: IssuePath): Issue[] {
     case "invalid_union":
       // Steps are a union; report errors from the branch the user clearly meant.
       if (path.length === 2 && path[0] === "steps") return stepIssues(value, path);
+      if (path.at(-1) === "duration" || path.at(-1) === "pause") {
+        return [{ path, message: `${DURATION_HINT}, got ${describe(value)}` }];
+      }
       return [{ path, message: issue.message }];
 
     case "invalid_type":
@@ -76,7 +99,7 @@ function toIssues(issue: ZodIssue, root: unknown, base: IssuePath): Issue[] {
     case "unrecognized_keys":
       return issue.keys.map((key) => ({
         path: [...path, key],
-        message: unknownKeyMessage(key, path),
+        message: unknownKeyMessage(key, path, value),
       }));
 
     case "invalid_value": {
@@ -101,17 +124,24 @@ function toIssues(issue: ZodIssue, root: unknown, base: IssuePath): Issue[] {
     case "too_big":
       return [{ path, message: `must be ${issue.inclusive ? "<=" : "<"} ${issue.maximum}` }];
 
-    default:
-      return [{ path, message: issue.message }];
+    default: {
+      // Bare numbers are seconds; `duration: 500` almost always meant milliseconds.
+      const isDuration = path.at(-1) === "duration" || path.at(-1) === "pause";
+      const tooLong = isDuration && typeof value === "number" && value * 1000 > MAX_STEP_MS;
+      const hint = tooLong ? ` (bare numbers are seconds — did you mean "${value}ms"?)` : "";
+      return [{ path, message: `${issue.message}${hint}` }];
+    }
   }
 }
+
+const DURATION_HINT = 'expected a duration like "1.2s" or "500ms"';
 
 function stepIssues(step: unknown, path: IssuePath): Issue[] {
   const example = 'a step like "- reveal: [client]" or "- flow: { from: a, to: b }"';
   if (!isRecord(step)) return [{ path, message: `expected ${example}, got ${describe(step)}` }];
 
   const keys = Object.keys(step);
-  const kinds = keys.filter((k): k is StepKind => (STEP_KINDS as readonly string[]).includes(k));
+  const kinds = keys.filter(isStepKind);
 
   if (kinds.length > 1) {
     return [{ path, message: `a step must have exactly one action, found ${kinds.join(" and ")}` }];
@@ -130,13 +160,29 @@ function stepIssues(step: unknown, path: IssuePath): Issue[] {
   return result.success ? [] : result.error.issues.flatMap((i) => toIssues(i, step, path));
 }
 
-function unknownKeyMessage(key: string, parent: IssuePath): string {
+function unknownKeyMessage(key: string, parent: IssuePath, container: unknown): string {
+  const quoted = JSON.stringify(key); // keys are user input; never echo raw control chars
   const owner = parent.at(-1);
-  const isStepBody = (STEP_KINDS as readonly unknown[]).includes(owner);
-  if (key === "duration" && isStepBody && typeof owner === "string") {
+  if (key === "duration" && typeof owner === "string" && isStepKind(owner)) {
     return `unknown key "duration" in ${owner} — move it up one level, next to "${owner}:"`;
   }
-  return `unknown key "${key}"${didYouMean(key, KNOWN_KEYS) ?? ""}`;
+  const kind = isRecord(container) ? STEP_KINDS.find((k) => k in container) : undefined;
+  if (parent.length === 2 && parent[0] === "steps" && kind !== undefined) {
+    if (kind === "pause" && key === "duration") {
+      return `"pause" takes its duration as its value, e.g. "- pause: 2s"`;
+    }
+    if (KNOWN_KEYS.includes(key) && kind !== "reveal" && kind !== "pause") {
+      return `unknown key ${quoted} next to "${kind}:" — move it inside, e.g. "${kind}: { ${key}: … }"`;
+    }
+  }
+  if (KNOWN_KEYS.includes(key)) return `${quoted} is not allowed here`;
+  const hint =
+    didYouMean(key, KNOWN_KEYS) ?? " — check the spelling, or it may need a newer archreel";
+  return `unknown key ${quoted}${hint}`;
+}
+
+function isStepKind(s: string): s is StepKind {
+  return (STEP_KINDS as readonly string[]).includes(s);
 }
 
 const KNOWN_KEYS = [
@@ -164,8 +210,27 @@ const KNOWN_KEYS = [
 // ---------------------------------------------------------------------------
 // cross-reference checks (things a schema can't express)
 
+const MAX_SUGGESTIONS = 50;
+
 function checkReferences(spec: Spec): Issue[] {
   const issues: Issue[] = [];
+  // Suggestions cost O(candidates × id length²); cap them so hostile specs stay fast.
+  let suggestionBudget = MAX_SUGGESTIONS;
+  const unknownRef = (
+    kind: string,
+    id: string,
+    known: Set<string>,
+    aliases?: Map<string, string>,
+  ): string => {
+    const alias = aliases?.get(id.toLowerCase());
+    const hint =
+      alias !== undefined
+        ? ` — did you mean "${alias}"?`
+        : suggestionBudget-- > 0
+          ? didYouMean(id, [...known])
+          : undefined;
+    return `unknown ${kind} "${id}"${hint ?? ""}`;
+  };
   const nodeIds = new Set<string>();
   const groupIds = new Set(spec.groups.map((g) => g.id));
   // "postgres" should suggest "pg" when pg's label is "Postgres".
@@ -230,8 +295,16 @@ function checkReferences(spec: Spec): Issue[] {
       const { from, to } = step.flow;
       const okFrom = node(from, [...at, "flow", "from"]);
       const okTo = node(to, [...at, "flow", "to"]);
+      if (okFrom && okTo && from === to) {
+        issues.push({ path: [...at, "flow"], message: `a flow needs two different nodes` });
+      }
       // A flow may travel an edge in either direction (e.g. a response).
-      if (okFrom && okTo && !edgeKeys.has(`${from}->${to}`) && !edgeKeys.has(`${to}->${from}`)) {
+      else if (
+        okFrom &&
+        okTo &&
+        !edgeKeys.has(`${from}->${to}`) &&
+        !edgeKeys.has(`${to}->${from}`)
+      ) {
         issues.push({
           path: [...at, "flow"],
           message: `no edge between "${from}" and "${to}" — add { from: ${from}, to: ${to} } to edges`,
@@ -247,17 +320,6 @@ function checkReferences(spec: Spec): Issue[] {
   return issues;
 }
 
-function unknownRef(
-  kind: string,
-  id: string,
-  known: Set<string>,
-  aliases?: Map<string, string>,
-): string {
-  const alias = aliases?.get(id.toLowerCase());
-  const hint = alias ? ` — did you mean "${alias}"?` : didYouMean(id, [...known]);
-  return `unknown ${kind} "${id}"${hint ?? ""}`;
-}
-
 // ---------------------------------------------------------------------------
 // helpers
 
@@ -267,29 +329,37 @@ export function didYouMean(input: string, candidates: readonly string[]): string
   let best: string | undefined;
   let bestDist = Math.max(1, Math.floor(input.length / 3)) + 1;
   for (const c of candidates) {
-    const d = editDistance(needle, c.toLowerCase());
+    if (Math.abs(c.length - input.length) >= bestDist) continue; // can't beat bestDist
+    const d = editDistance(needle, c.toLowerCase(), bestDist);
     if (d < bestDist) [best, bestDist] = [c, d];
   }
   return best === undefined ? undefined : ` — did you mean "${best}"?`;
 }
 
-/** Optimal string alignment distance: Levenshtein plus adjacent transpositions ("vcp" → "vpc" = 1). */
-function editDistance(a: string, b: string): number {
-  const d: number[][] = Array.from({ length: a.length + 1 }, (_, i) =>
-    Array.from({ length: b.length + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
-  );
-  const at = (i: number, j: number): number => d[i]?.[j] ?? 0;
+/**
+ * Optimal string alignment distance (Levenshtein + adjacent transpositions, so "vcp" → "vpc" = 1).
+ * Returns `limit` as soon as the distance is known to be >= limit.
+ */
+function editDistance(a: string, b: string, limit: number): number {
+  let prev2 = new Int32Array(b.length + 1);
+  let prev = Int32Array.from({ length: b.length + 1 }, (_, j) => j);
+  let cur = new Int32Array(b.length + 1);
   for (let i = 1; i <= a.length; i++) {
-    const row = d[i] ?? [];
+    cur[0] = i;
+    let rowMin = i;
     for (let j = 1; j <= b.length; j++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      row[j] = Math.min(at(i - 1, j) + 1, at(i, j - 1) + 1, at(i - 1, j - 1) + cost);
+      let v = Math.min((prev[j] ?? 0) + 1, (cur[j - 1] ?? 0) + 1, (prev[j - 1] ?? 0) + cost);
       if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
-        row[j] = Math.min(at(i, j), at(i - 2, j - 2) + 1);
+        v = Math.min(v, (prev2[j - 2] ?? 0) + 1);
       }
+      cur[j] = v;
+      rowMin = Math.min(rowMin, v);
     }
+    if (rowMin >= limit) return limit;
+    [prev2, prev, cur] = [prev, cur, prev2];
   }
-  return at(a.length, b.length);
+  return Math.min(prev[b.length] ?? 0, limit);
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
