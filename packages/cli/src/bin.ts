@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
-import { buildScene } from "@archreel/layout";
-import { log, readSpec } from "./shared.js";
+import { log, publicDirFor, readProject } from "./shared.js";
 
 const USAGE = `Usage: archreel <command> [options]
 
@@ -22,9 +21,9 @@ async function validate(files: string[]): Promise<number> {
   if (files.length === 0) return usage("validate: expected at least one spec file");
   let failed = 0;
   for (const file of files) {
-    const spec = await readSpec(file);
-    if (spec) {
-      const { nodes, edges, steps } = spec;
+    const project = await readProject(file);
+    if (project) {
+      const { nodes, edges, steps } = project.spec;
       process.stdout.write(
         `✓ ${file} — ${nodes.length} nodes, ${edges.length} edges, ${steps.length} steps\n`,
       );
@@ -45,12 +44,17 @@ async function render(
   if (parsedScale !== undefined && !(parsedScale > 0 && parsedScale <= 4)) {
     return usage(`render: --scale must be a number in (0, 4], got "${scale ?? ""}"`);
   }
-  const spec = await readSpec(file);
-  if (!spec) return EXIT_INVALID;
+  const project = await readProject(file);
+  if (!project) return EXIT_INVALID;
   const target = out ?? file.replace(/\.(ya?ml|json)$/i, "") + ".mp4";
   // Loaded lazily: Remotion's renderer is heavy and `validate` doesn't need it.
   const { renderScene } = await import("./render.js");
-  await renderScene(await buildScene(spec), { out: target, scale: parsedScale, log });
+  await renderScene(project.scene, {
+    out: target,
+    scale: parsedScale,
+    publicDir: await publicDirFor(project.audioFile),
+    log,
+  });
   log(`✓ wrote ${target}`);
   return 0;
 }

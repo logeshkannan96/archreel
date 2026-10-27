@@ -1,4 +1,7 @@
 import { execFile } from "node:child_process";
+import { copyFileSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
@@ -31,6 +34,20 @@ describe("archreel validate", () => {
       'examples/invalid/typo.yaml:17:24 steps[2].flow.to: unknown node "postgres" — did you mean "pg"?',
     );
     expect(r.stderr).toContain("✗ examples/invalid/typo.yaml — 4 problems");
+  });
+
+  it("checks voiceover anchors against the captions", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "archreel-vo-"));
+    const narrated = join(root, "examples/narrated");
+    copyFileSync(join(narrated, "captions.json"), join(dir, "captions.json"));
+    const spec = readFileSync(join(narrated, "url-shortener.yaml"), "utf8");
+    writeFileSync(join(dir, "s.yaml"), spec.replace("at: checks redis", "at: checks redsi"));
+
+    const r = await run("validate", join(dir, "s.yaml"));
+    expect(r.code).toBe(1);
+    expect(r.stderr).toContain(
+      `s.yaml:41:5 steps[3].at: "checks redsi" isn't in the voiceover captions — did you mean "redis"?`,
+    );
   });
 
   it("exits 1 for a missing file", async () => {
