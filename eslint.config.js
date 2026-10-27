@@ -18,6 +18,18 @@ export default tseslint.config(
       "@typescript-eslint/restrict-template-expressions": ["error", { allowNumber: true }],
     },
   },
+  {
+    // Rendering must be deterministic: every frame is a pure function of (scene, frame).
+    files: ["packages/remotion/src/**"],
+    rules: {
+      "no-restricted-globals": ["error", { name: "Date", message: "Use frame-derived time." }],
+      "no-restricted-properties": [
+        "error",
+        { object: "Math", property: "random", message: "Use random(seed) from remotion." },
+        { object: "performance", property: "now", message: "Use frame-derived time." },
+      ],
+    },
+  },
   { files: ["**/*.js"], ...tseslint.configs.disableTypeChecked },
   prettier,
 );
