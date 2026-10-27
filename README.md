@@ -28,7 +28,7 @@ spec always produces the same video, byte for byte.
 
 ```yaml
 version: 1
-theme: dark # dark | light | { base: dark, colors: { packet: "#22d3ee" } }
+theme: light # light | dark | { base: dark, colors: { packet: "#22d3ee" }, nodes: card }
 canvas: { width: 1920, height: 1080, fps: 30 }
 
 nodes:
@@ -69,8 +69,26 @@ steps:
 - **Vertical videos:** portrait canvases flow top to bottom. A 9:16 canvas (`1080 × 1920`) keeps
   the diagram and captions clear of the YouTube Shorts overlays. Override with
   `direction: right | down`.
-- **Icons** (generic line glyphs, not vendor logos): `user`, `server`, `database`, `cache`,
-  `queue`, `aws/alb`, `aws/s3`, `k8s/pod`, `redis`, `postgres`, `kafka`.
+- **Look:** by default each node is a large icon with its label underneath. `nodes: card` in a
+  theme object puts icon and label in a box instead.
+- **Icons** (generic glyphs, not vendor logos): `user`, `server`, `database`, `cache`, `queue`,
+  `aws/alb`, `aws/s3`, `k8s/pod`, `redis`, `postgres`, `kafka`.
+
+### Your own icons
+
+Declare SVG or PNG files next to the spec and use them by name. Reusing a built-in name
+(`postgres`, `kafka`, …) replaces that glyph everywhere. Use logos you're allowed to use.
+
+```yaml
+icons:
+  dashboards: icons/gauge.svg # relative to the spec, inside its folder
+  postgres: icons/my-postgres.png # replaces the built-in glyph
+
+nodes:
+  - { id: grafana, label: Dashboards, icon: dashboards }
+```
+
+The CLI embeds the files into the render, so the output stays reproducible.
 
 Mistakes are reported with a location and a suggestion:
 
@@ -90,9 +108,10 @@ The same JSON Schema works as a tool definition for an LLM: have it write the YA
 
 ## Gallery
 
-|                                                                                                                                                                |                                                                                                                                                                               |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ![Rate limiter](https://raw.githubusercontent.com/logeshkannan96/archreel/main/examples/rate-limiter.gif)<br>[`rate-limiter.yaml`](examples/rate-limiter.yaml) | ![Kafka fan-out](https://raw.githubusercontent.com/logeshkannan96/archreel/main/examples/kafka-fanout.gif)<br>[`kafka-fanout.yaml`](examples/kafka-fanout.yaml) (light theme) |
+|                                                                                                                                                                                     |                                                                                                                                                                              |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![Rate limiter](https://raw.githubusercontent.com/logeshkannan96/archreel/main/examples/rate-limiter.gif)<br>[`rate-limiter.yaml`](examples/rate-limiter.yaml)                      | ![Kafka fan-out](https://raw.githubusercontent.com/logeshkannan96/archreel/main/examples/kafka-fanout.gif)<br>[`kafka-fanout.yaml`](examples/kafka-fanout.yaml) (dark theme) |
+| ![Custom icons](https://raw.githubusercontent.com/logeshkannan96/archreel/main/examples/custom-icons.gif)<br>[`custom-icons.yaml`](examples/custom-icons.yaml) (your own SVG icons) |                                                                                                                                                                              |
 
 <img alt="URL shortener as a vertical Short" src="https://raw.githubusercontent.com/logeshkannan96/archreel/main/examples/url-shortener-shorts.gif" width="270"><br>
 [`url-shortener-shorts.yaml`](examples/url-shortener-shorts.yaml): the same spec on a 9:16 canvas.
@@ -119,14 +138,18 @@ const scene = await buildScene(result.spec);
 
 // In your component: the diagram is scene.width × scene.height px and starts at frame 0.
 <Sequence from={90}>
-  <Archreel scene={scene} />
+  <Archreel scene={scene} theme={{ text: "#f8fafc", packet: "#a3e635" }} fontFamily="Poppins" />
 </Sequence>;
 ```
 
 - Set the spec's `canvas` to the size you want the diagram, and its `fps` to your composition's.
   A mismatch throws instead of silently playing at the wrong speed.
-- `theme: { base: dark, colors: { background: "#00000000" } }` makes the diagram transparent
-  over your own background.
+- `theme` and `fontFamily` props let your video's colors and font win over the spec's (load the
+  font yourself). Text is sized for the bundled Inter, so a much wider font can crowd labels.
+- `theme: { base: dark, colors: { background: "#00000000" } }` in the spec makes the diagram
+  transparent over your own background.
+- Specs with their own icons need image sources:
+  `buildScene(spec, { icons: { dashboards: staticFile("icons/gauge.svg") } })`.
 - `remotion`, `react` and `react-dom` are peer dependencies, so the component uses your Remotion
   version.
 
@@ -173,7 +196,7 @@ Exit codes: `0` ok, `1` invalid spec or failed render, `2` usage error.
 - [Remotion](https://www.remotion.dev) renders the video (see the licensing note above).
 - [elkjs](https://github.com/kieler/elkjs) lays out the diagram (EPL-2.0).
 - [Inter](https://rsms.me/inter/) is the bundled font (SIL Open Font License).
-- Icons are original, generic glyphs. Names like `aws/alb` describe a kind of component; no
+- Built-in icons are original, generic glyphs. Names like `aws/alb` describe a kind of component; no
   vendor logos are included.
 
 ## Contributing
