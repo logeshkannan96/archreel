@@ -47,7 +47,6 @@ const MAX_NODES = 500;
 const MAX_GROUPS = 100;
 const MAX_EDGES = 2000;
 const MAX_STEPS = 2000;
-const MAX_PATH_LENGTH = 500;
 export const MAX_STEP_MS = 60_000;
 
 const Id = z
@@ -96,26 +95,6 @@ export const CustomTheme = z.strictObject({
   colors: z.strictObject(colorShape).default({}).meta({ description: "Hex color overrides" }),
 });
 
-/** A file next to the spec. Must stay inside the spec's folder. */
-const RelativePath = z
-  .string()
-  .min(1)
-  .max(MAX_PATH_LENGTH)
-  .refine((p) => !/^(?:[\\/]|[A-Za-z]:)/.test(p), "must be a relative path")
-  .refine(
-    (p) => !p.split(/[\\/]/).includes(".."),
-    'must not contain ".." (files must be inside the spec\'s folder)',
-  );
-
-export const VoiceoverSchema = z
-  .strictObject({
-    captions: RelativePath.meta({
-      description: "Word timestamps: a JSON array of { text, startMs, endMs } (Remotion Caption)",
-    }),
-    audio: RelativePath.optional().meta({ description: "Narration audio (mp3, wav, m4a, …)" }),
-  })
-  .meta({ description: "Narration that steps can anchor to with `at`" });
-
 const Dimension = z
   .int()
   .positive()
@@ -148,14 +127,9 @@ const stepDuration = Duration.optional().meta({
   description: "How long this step plays; defaults per step kind",
 });
 
-const stepAt = Text.optional().meta({
-  description: "Start this step when the phrase is spoken in the voiceover",
-});
-
 export const RevealStep = z.strictObject({
   reveal: z.array(Id).min(1).max(MAX_NODES).meta({ description: "Node or group ids to fade in" }),
   duration: stepDuration,
-  at: stepAt,
 });
 
 export const FlowStep = z.strictObject({
@@ -165,7 +139,6 @@ export const FlowStep = z.strictObject({
     label: Text.optional(),
   }),
   duration: stepDuration,
-  at: stepAt,
 });
 
 export const HighlightStep = z.strictObject({
@@ -174,7 +147,6 @@ export const HighlightStep = z.strictObject({
     caption: Text.optional(),
   }),
   duration: stepDuration,
-  at: stepAt,
 });
 
 export const FailStep = z.strictObject({
@@ -184,12 +156,10 @@ export const FailStep = z.strictObject({
     label: Text.optional(),
   }),
   duration: stepDuration,
-  at: stepAt,
 });
 
 export const PauseStep = z.strictObject({
   pause: Duration,
-  at: stepAt,
 });
 
 /** One schema per step kind, keyed by the kind's action key. */
@@ -222,7 +192,6 @@ export const SpecSchema = z
     groups: z.array(GroupSchema).max(MAX_GROUPS).default([]),
     edges: z.array(EdgeSchema).max(MAX_EDGES).default([]),
     steps: z.array(StepSchema).max(MAX_STEPS).default([]),
-    voiceover: VoiceoverSchema.optional(),
   })
   .meta({ title: "archreel spec", description: "Declarative architecture explainer video" });
 

@@ -284,12 +284,6 @@
                     "pattern": "^(\\d+(?:\\.\\d+)?)(ms|s)$"
                   }
                 ]
-              },
-              "at": {
-                "description": "Start this step when the phrase is spoken in the voiceover",
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 200
               }
             },
             "required": [
@@ -339,12 +333,6 @@
                     "pattern": "^(\\d+(?:\\.\\d+)?)(ms|s)$"
                   }
                 ]
-              },
-              "at": {
-                "description": "Start this step when the phrase is spoken in the voiceover",
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 200
               }
             },
             "required": [
@@ -393,12 +381,6 @@
                     "pattern": "^(\\d+(?:\\.\\d+)?)(ms|s)$"
                   }
                 ]
-              },
-              "at": {
-                "description": "Start this step when the phrase is spoken in the voiceover",
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 200
               }
             },
             "required": [
@@ -449,12 +431,6 @@
                     "pattern": "^(\\d+(?:\\.\\d+)?)(ms|s)$"
                   }
                 ]
-              },
-              "at": {
-                "description": "Start this step when the phrase is spoken in the voiceover",
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 200
               }
             },
             "required": [
@@ -477,12 +453,6 @@
                     "pattern": "^(\\d+(?:\\.\\d+)?)(ms|s)$"
                   }
                 ]
-              },
-              "at": {
-                "description": "Start this step when the phrase is spoken in the voiceover",
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 200
               }
             },
             "required": [
@@ -492,28 +462,6 @@
           }
         ]
       }
-    },
-    "voiceover": {
-      "type": "object",
-      "properties": {
-        "captions": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 500,
-          "description": "Word timestamps: a JSON array of { text, startMs, endMs } (Remotion Caption)"
-        },
-        "audio": {
-          "description": "Narration audio (mp3, wav, m4a, …)",
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 500
-        }
-      },
-      "required": [
-        "captions"
-      ],
-      "additionalProperties": false,
-      "description": "Narration that steps can anchor to with `at`"
     }
   },
   "required": [

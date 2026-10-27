@@ -1,5 +1,4 @@
-import type { Issue, Spec } from "@archreel/schema";
-import { SceneError, seconds, type Voiceover } from "./anchors.js";
+import type { Spec } from "@archreel/schema";
 
 /** Default step lengths, used when a step has no explicit `duration`. */
 export const DEFAULT_MS = { reveal: 800, flow: 1200, highlight: 2000, fail: 1500 } as const;
@@ -40,11 +39,8 @@ export const edgeId = (from: string, to: string): string => `${from}->${to}`;
  * Otherwise a node appears at the first step that references it (revealing a
  * group reveals its members), a group appears with its first member, and an
  * edge appears once both endpoints are visible.
- *
- * An anchored step (`at`) starts when its phrase is spoken: the step before it
- * stretches or shrinks to end there. Throws SceneError if that step would vanish.
  */
-export function buildTimeline(spec: Spec, fps: number, voiceover?: Voiceover): Timeline {
+export function buildTimeline(spec: Spec, fps: number): Timeline {
   const toFrames = (ms: number): number => Math.max(1, Math.round((ms * fps) / 1000));
   const members = new Map<string, string[]>();
   for (const n of spec.nodes) {
@@ -70,25 +66,9 @@ export function buildTimeline(spec: Spec, fps: number, voiceover?: Voiceover): T
 
   const edges = new Set(spec.edges.map((e) => edgeId(e.from, e.to)));
   const steps: TimedStep[] = [];
-  const issues: Issue[] = [];
   let cursor = toFrames(LEAD_IN_MS);
 
-  for (const [index, step] of spec.steps.entries()) {
-    const anchorMs = voiceover?.anchors[index];
-    if (anchorMs !== undefined) {
-      const anchor = Math.round((anchorMs * fps) / 1000);
-      const prev = steps.at(-1);
-      if (prev === undefined) cursor = anchor;
-      else if (anchor > prev.actionStart) {
-        prev.frames = anchor - prev.start;
-        cursor = anchor;
-      } else {
-        issues.push({
-          path: ["steps", index, "at"],
-          message: `"${step.at ?? ""}" is spoken at ${seconds(anchorMs)}, but steps[${index - 1}] can't finish before ${seconds(((prev.actionStart + 1) * 1000) / fps)} — shorten earlier steps or anchor one of them`,
-        });
-      }
-    }
+  for (const step of spec.steps) {
     const start = cursor;
     const timed = (ms: number, referenced: readonly string[]): Timing => {
       const revealFrames = show(referenced, start) ? toFrames(IMPLICIT_REVEAL_MS) : 0;
@@ -148,8 +128,5 @@ export function buildTimeline(spec: Spec, fps: number, voiceover?: Voiceover): T
     appear[edgeId(e.from, e.to)] = Math.max(appear[e.from] ?? 0, appear[e.to] ?? 0);
   }
 
-  if (issues.length > 0) throw new SceneError(issues);
-  // Let the narration finish, even if it outlasts the steps.
-  const end = Math.max(cursor, Math.ceil(((voiceover?.endMs ?? 0) * fps) / 1000));
-  return { steps, appear, durationInFrames: end + toFrames(TAIL_MS) };
+  return { steps, appear, durationInFrames: cursor + toFrames(TAIL_MS) };
 }

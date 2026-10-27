@@ -47,8 +47,6 @@ function neutralize(input: unknown, issues: readonly Issue[]): unknown {
   for (const { path } of issues) {
     const [section, index, field] = path;
     if (section === "version") copy.version = 1;
-    // Keep a voiceover so steps' `at` aren't also reported as missing one.
-    else if (section === "voiceover") copy.voiceover = { captions: "captions.json" };
     else if (section === "theme" || section === "canvas" || section === "$schema") {
       Reflect.deleteProperty(copy, section);
     } else {
@@ -189,8 +187,8 @@ function themeIssues(theme: unknown): Issue[] {
 function unknownKeyMessage(key: string, parent: IssuePath, container: unknown): string {
   const quoted = JSON.stringify(key); // keys are user input; never echo raw control chars
   const owner = parent.at(-1);
-  if ((key === "duration" || key === "at") && typeof owner === "string" && isStepKind(owner)) {
-    return `unknown key "${key}" in ${owner} — move it up one level, next to "${owner}:"`;
+  if (key === "duration" && typeof owner === "string" && isStepKind(owner)) {
+    return `unknown key "duration" in ${owner} — move it up one level, next to "${owner}:"`;
   }
   const kind = isRecord(container) ? STEP_KINDS.find((k) => k in container) : undefined;
   if (parent.length === 2 && parent[0] === "steps" && kind !== undefined) {
@@ -229,11 +227,8 @@ const KNOWN_KEYS = [
     "node",
     "effect",
     "duration",
-    "at",
     "base",
     "colors",
-    "captions",
-    "audio",
     ...THEME_COLORS,
     ...STEP_KINDS,
   ]),
@@ -314,12 +309,6 @@ function checkReferences(spec: Spec): Issue[] {
   const revealable = new Set([...nodeIds, ...groupIds]);
   spec.steps.forEach((step, i) => {
     const at: IssuePath = ["steps", i];
-    if (step.at !== undefined && spec.voiceover === undefined) {
-      issues.push({
-        path: [...at, "at"],
-        message: "needs a voiceover to anchor to — add voiceover: { captions: captions.json }",
-      });
-    }
     const target = (id: string, path: IssuePath): void => {
       if (!revealable.has(id)) {
         issues.push({ path, message: unknownRef("node or group", id, revealable, nodeAliases) });

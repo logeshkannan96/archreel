@@ -1,5 +1,5 @@
 import type { Scene } from "@archreel/layout";
-import { AbsoluteFill, Html5Audio, Sequence, staticFile } from "remotion";
+import { AbsoluteFill, Sequence } from "remotion";
 import {
   Callout,
   Caption,
@@ -43,11 +43,6 @@ export function Video({ scene }: VideoProps) {
 
   return (
     <AbsoluteFill style={{ background: theme.background, fontFamily: "Inter, sans-serif" }}>
-      {scene.audio === undefined ? null : (
-        <Html5Audio
-          src={/^https?:\/\//.test(scene.audio) ? scene.audio : staticFile(scene.audio)}
-        />
-      )}
       {scene.groups.map((g) => (
         <Group
           key={g.id}

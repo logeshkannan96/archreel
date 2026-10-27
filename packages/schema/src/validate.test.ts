@@ -1,7 +1,6 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { specJsonSchema } from "./json-schema.js";
-import { loadCaptions } from "./captions.js";
 import { formatIssues, loadSpec } from "./load.js";
 import { formatPath, validateSpec } from "./validate.js";
 
@@ -65,20 +64,9 @@ describe("valid specs", () => {
     expect(problems({ steps: [{ flow: { from: "pg", to: "api" } }] })).toEqual([]);
   });
 
-  it("accepts a custom theme and a voiceover with anchored steps", () => {
-    const result = validateSpec({
-      ...base,
-      theme: { base: "light", colors: { packet: "#22d3ee", groupFill: "#3b82f610" } },
-      voiceover: { captions: "narration/captions.json", audio: "narration/vo.mp3" },
-      steps: [
-        { reveal: ["client"], at: "a user" },
-        { pause: "1s", at: "then" },
-      ],
-    });
-    expect(result).toMatchObject({
-      ok: true,
-      spec: { theme: { base: "light", colors: { packet: "#22d3ee", groupFill: "#3b82f610" } } },
-    });
+  it("accepts a custom theme", () => {
+    const theme = { base: "light", colors: { packet: "#22d3ee", background: "#00000000" } };
+    expect(validateSpec({ ...base, theme })).toMatchObject({ ok: true, spec: { theme } });
   });
 
   it("allows revealing, highlighting and failing a group", () => {
@@ -286,33 +274,7 @@ describe("invalid specs", () => {
       { theme: { colors: { pakcet: "#fff" } } },
       ['theme.colors.pakcet: unknown key "pakcet" — did you mean "packet"?'],
     ],
-    [
-      "at without a voiceover",
-      { steps: [{ reveal: ["api"], at: "the api" }] },
-      ["steps[0].at: needs a voiceover to anchor to — add voiceover: { captions: captions.json }"],
-    ],
-    [
-      "at inside the action",
-      {
-        voiceover: { captions: "c.json" },
-        steps: [{ flow: { from: "client", to: "api", at: "x" } }],
-      },
-      ['steps[0].flow.at: unknown key "at" in flow — move it up one level, next to "flow:"'],
-    ],
-    [
-      "voiceover files must stay in the spec's folder",
-      { voiceover: { captions: "../secret.json", audio: "/etc/passwd" } },
-      [
-        `voiceover.captions: must not contain ".." (files must be inside the spec's folder)`,
-        "voiceover.audio: must be a relative path",
-      ],
-    ],
-    [
-      "a broken voiceover doesn't also flag every at",
-      { voiceover: { captions: "C:\\c.json" }, steps: [{ reveal: ["api"], at: "x" }] },
-      ["voiceover.captions: must be a relative path"],
-    ],
-  ])("theme and voiceover: %s", (_name, overrides, expected) => {
+  ])("theme: %s", (_name, overrides, expected) => {
     expect(problems(overrides)).toEqual(expected);
   });
 
@@ -428,33 +390,6 @@ describe("loadSpec", () => {
 
   it("accepts JSON", () => {
     expect(loadSpec(JSON.stringify(base)).ok).toBe(true);
-  });
-});
-
-describe("loadCaptions", () => {
-  it("accepts Remotion captions, dropping extra fields", () => {
-    const source = '[{"text":" Hi","startMs":0,"endMs":300,"timestampMs":150,"confidence":0.9}]';
-    expect(loadCaptions(source)).toEqual({
-      ok: true,
-      captions: [{ text: " Hi", startMs: 0, endMs: 300 }],
-    });
-  });
-
-  it.each([
-    ["not JSON", "nope", `invalid JSON: Unexpected token 'o', "nope" is not valid JSON`],
-    [
-      "not an array",
-      "{}",
-      "Invalid input: expected array, received object (expected an array of { text, startMs, endMs })",
-    ],
-    [
-      "wrong field type",
-      '[{"text":"hi","startMs":"0","endMs":5}]',
-      "Invalid input: expected number, received string",
-    ],
-  ])("rejects %s", (_name, source, message) => {
-    const result = loadCaptions(source);
-    expect(result.ok ? [] : result.issues.map((i) => i.message)).toEqual([message]);
   });
 });
 

@@ -12,18 +12,13 @@ export interface RenderOptions {
   out: string;
   /** Output scale; defaults to 1 (MP4) or 0.5 (GIF). */
   scale?: number | undefined;
-  /** Folder served to the browser, holding the narration audio. */
-  publicDir?: string | undefined;
   log: (line: string) => void;
 }
 
-export async function renderScene(
-  scene: Scene,
-  { out, scale, publicDir, log }: RenderOptions,
-): Promise<void> {
+export async function renderScene(scene: Scene, { out, scale, log }: RenderOptions): Promise<void> {
   const isGif = out.toLowerCase().endsWith(".gif");
   log("Bundling…");
-  const serveUrl = await bundle({ entryPoint: ENTRY_POINT, ...(publicDir ? { publicDir } : {}) });
+  const serveUrl = await bundle({ entryPoint: ENTRY_POINT });
   const inputProps = { scene };
   const composition = await selectComposition({ serveUrl, id: COMPOSITION_ID, inputProps });
 

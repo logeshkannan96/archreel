@@ -14,7 +14,7 @@ export type LoadResult = { ok: true; spec: Spec } | { ok: false; issues: Located
 export const MAX_SPEC_BYTES = 1_000_000;
 
 /** Text fields where YAML's number typing (`label: 429`) is never what the author meant. */
-const TEXT_KEYS = new Set(["label", "caption", "at"]);
+const TEXT_KEYS = new Set(["label", "caption"]);
 
 /**
  * Parse YAML (or JSON, a YAML subset) and validate, attaching source locations to issues.
@@ -49,16 +49,6 @@ export function loadSpec(source: string): LoadResult {
   const result = validateSpec(data);
   if (result.ok) return result;
   return { ok: false, issues: locate(doc, lineCounter, result.issues) };
-}
-
-/** Attaches source locations to issues found after loading (e.g. voiceover anchors). */
-export function locateIssues(source: string, issues: readonly Issue[]): LocatedIssue[] {
-  const lineCounter = new LineCounter();
-  try {
-    return locate(parseDocument(source, { lineCounter }), lineCounter, issues);
-  } catch {
-    return [...issues];
-  }
 }
 
 function locate(doc: Document, lc: LineCounter, issues: readonly Issue[]): LocatedIssue[] {
