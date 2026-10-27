@@ -28,7 +28,7 @@ describe("archreel validate", () => {
     const r = await run("validate", "examples/invalid/typo.yaml");
     expect(r.code).toBe(1);
     expect(r.stderr).toContain(
-      'examples/invalid/typo.yaml:17:28 steps[2].flow.to: unknown node "postgres" — did you mean "pg"?',
+      'examples/invalid/typo.yaml:17:24 steps[2].flow.to: unknown node "postgres" — did you mean "pg"?',
     );
     expect(r.stderr).toContain("✗ examples/invalid/typo.yaml — 4 problems");
   });

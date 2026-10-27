@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { parseArgs } from "node:util";
-import { formatIssues, loadSpec } from "@archreel/schema";
+import { MAX_SPEC_BYTES, formatIssues, loadSpec } from "@archreel/schema";
 
 const USAGE = `Usage: archreel <command> [options]
 
@@ -23,6 +23,12 @@ async function validate(files: string[]): Promise<number> {
   for (const file of files) {
     let source: string;
     try {
+      // Check size before reading so a huge file can't exhaust memory.
+      if ((await stat(file)).size > MAX_SPEC_BYTES) {
+        process.stderr.write(`${file}: larger than ${MAX_SPEC_BYTES / 1_000_000} MB\n`);
+        failed++;
+        continue;
+      }
       source = await readFile(file, "utf8");
     } catch (err) {
       const reason = err instanceof Error && "code" in err ? String(err.code) : String(err);
