@@ -11,6 +11,9 @@ export interface Box extends Point {
   width: number;
   height: number;
 }
+/** "icon": the box is the icon and the label sits below it; "card": label inside the box. */
+export type NodeStyle = "icon" | "card";
+
 export interface SceneNode extends Box {
   id: string;
   label: string;
@@ -35,6 +38,7 @@ export interface Scene {
   height: number;
   /** Distance from the bottom edge to the caption band, clear of platform UI. */
   captionBottom: number;
+  nodeStyle: NodeStyle;
   fps: number;
   theme: ThemeSpec;
   /** Layout units → canvas pixels; renderers scale text and icons by it. */
@@ -49,6 +53,11 @@ export interface Scene {
 
 // Layout units (pre-fit). Text sizes assume the renderer's 20px label font.
 export const NODE_HEIGHT = 120;
+// Icon style: the node box is the icon; its label (18px) hangs below, outside the box.
+export const ICON_SIZE = 96;
+export const ICON_LABEL_GAP = 10;
+const ICON_LABEL_HEIGHT = 24;
+const ICON_CHAR_WIDTH = 10;
 const NODE_MIN_WIDTH = 150;
 const NODE_MAX_WIDTH = 260;
 const CHAR_WIDTH = 11;
@@ -138,13 +147,34 @@ export async function buildScene(spec: Spec): Promise<Scene> {
   const unswapBox = (b: Box): Box =>
     down ? { x: b.y, y: b.x, width: b.height, height: b.width } : b;
 
-  const toElkNode = (n: Spec["nodes"][number]): ElkNode => ({
-    id: n.id,
-    // INTERACTIVE crossing minimization orders each layer by these hints = spec order.
-    x: 0,
-    y: (specIndex.get(n.id) ?? 0) * NODE_MAX_WIDTH,
-    ...size(nodeWidth(n.label ?? n.id), NODE_HEIGHT),
+  const nodeStyle: NodeStyle = typeof spec.theme === "string" ? "icon" : spec.theme.nodes;
+  const iconLabel = (label: string) => ({
+    width: label.length * ICON_CHAR_WIDTH + 8,
+    height: ICON_LABEL_GAP + ICON_LABEL_HEIGHT,
   });
+  const toElkNode = (n: Spec["nodes"][number]): ElkNode => {
+    const label = n.label ?? n.id;
+    const base = {
+      id: n.id,
+      // INTERACTIVE crossing minimization orders each layer by these hints = spec order.
+      x: 0,
+      y: (specIndex.get(n.id) ?? 0) * NODE_MAX_WIDTH,
+    };
+    if (nodeStyle === "card") return { ...base, ...size(nodeWidth(label), NODE_HEIGHT) };
+    // The label is an outside node label so ELK keeps neighbors clear of it. Below the
+    // icon on screen = to the right of it in the transposed (flowing down) layout.
+    const { width, height } = iconLabel(label);
+    return {
+      ...base,
+      ...size(ICON_SIZE, ICON_SIZE),
+      labels: [{ text: label, ...size(width, height) }],
+      layoutOptions: {
+        "elk.nodeLabels.placement": down
+          ? "[H_RIGHT, V_CENTER, OUTSIDE]"
+          : "[H_CENTER, V_BOTTOM, OUTSIDE]",
+      },
+    };
+  };
   // Children follow spec order (a group sits where its first member is) so
   // ELK's model-order constraints track what the author wrote.
   const children: ElkNode[] = [];
@@ -221,8 +251,19 @@ export async function buildScene(spec: Spec): Promise<Scene> {
   }
 
   // Fit the diagram into the canvas, centered in the area above the caption band.
+  // Icon labels hang below their boxes; the fit must include them.
+  const iconLabels: Box[] =
+    nodeStyle === "icon"
+      ? spec.nodes.flatMap((n) => {
+          const b = boxes.get(n.id);
+          if (!b) return [];
+          const { width: lw, height: lh } = iconLabel(n.label ?? n.id);
+          return [{ x: b.x + b.width / 2 - lw / 2, y: b.y + b.height, width: lw, height: lh }];
+        })
+      : [];
   const all: Box[] = [
     ...boxes.values(),
+    ...iconLabels,
     ...[...routed.values()].flatMap((r) => r.points.map((p) => ({ ...p, width: 0, height: 0 }))),
   ];
   const minX = Math.min(...all.map((b) => b.x));
@@ -313,6 +354,7 @@ export async function buildScene(spec: Spec): Promise<Scene> {
     width,
     height,
     captionBottom,
+    nodeStyle,
     fps,
     theme: spec.theme,
     scale: round(scale),

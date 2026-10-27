@@ -7,6 +7,7 @@ import {
   EdgeArrowDefs,
   Group,
   GroupLabel,
+  IconNode,
   Node,
   Packet,
   type Effect,
@@ -31,6 +32,7 @@ export function Archreel({ scene }: ArchreelProps) {
     );
   }
   const theme = resolveTheme(scene.theme);
+  const NodeView = scene.nodeStyle === "icon" ? IconNode : Node;
   const { scale } = scene;
 
   // Effects per target id; a group effect also applies to its members.
@@ -73,6 +75,7 @@ export function Archreel({ scene }: ArchreelProps) {
           effects={effects.get(g.id) ?? []}
           theme={theme}
           scale={scale}
+          solid={scene.nodeStyle === "icon"}
         />
       ))}
       <svg width={scene.width} height={scene.height} style={{ position: "absolute", inset: 0 }}>
@@ -91,7 +94,7 @@ export function Archreel({ scene }: ArchreelProps) {
         />
       ))}
       {scene.nodes.map((n) => (
-        <Node
+        <NodeView
           key={n.id}
           node={n}
           appear={scene.appear[n.id] ?? 0}

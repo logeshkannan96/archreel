@@ -6,7 +6,7 @@ import { MAX_SPEC_BYTES, SCHEMA_ID, stringifySpec } from "@archreel/schema";
 const TEMPLATE = `# yaml-language-server: $schema=${SCHEMA_ID}
 # Preview with \`archreel preview <this file>\`; it reloads on save.
 version: 1
-theme: dark
+theme: light # dark | light | { base: dark, colors: { packet: "#22d3ee" }, nodes: card }
 
 nodes:
   - { id: client, label: Client, icon: user }

@@ -18,6 +18,7 @@ export const ICONS = [
 export const FAIL_EFFECTS = ["shake", "flash"] as const;
 export const THEME_NAMES = ["dark", "light"] as const;
 export const DIRECTIONS = ["right", "down"] as const;
+export const NODE_STYLES = ["icon", "card"] as const;
 /** Colors a custom theme can override. */
 export const THEME_COLORS = [
   "background",
@@ -92,8 +93,11 @@ const colorShape = Object.fromEntries(THEME_COLORS.map((k) => [k, Color.optional
 >;
 
 export const CustomTheme = z.strictObject({
-  base: z.enum(THEME_NAMES).default("dark").meta({ description: "Theme to start from" }),
+  base: z.enum(THEME_NAMES).default("light").meta({ description: "Theme to start from" }),
   colors: z.strictObject(colorShape).default({}).meta({ description: "Hex color overrides" }),
+  nodes: z.enum(NODE_STYLES).default("icon").meta({
+    description: '"icon": a large icon with its label below; "card": icon and label in a box',
+  }),
 });
 
 const Dimension = z
@@ -180,7 +184,7 @@ export const SpecSchema = z
     version: z.literal(1),
     theme: z
       .union([z.enum(THEME_NAMES), CustomTheme])
-      .default("dark")
+      .default("light")
       .meta({ description: '"dark", "light", or { base, colors } to override colors' }),
     canvas: z
       .strictObject({

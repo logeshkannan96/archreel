@@ -1,6 +1,5 @@
 # yaml-language-server: $schema=../packages/schema/archreel.schema.json
 version: 1
-theme: dark
 canvas: { width: 1080, height: 1920, fps: 30 } # 9:16 Short: flows top to bottom
 
 nodes:

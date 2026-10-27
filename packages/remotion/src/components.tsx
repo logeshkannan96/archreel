@@ -1,7 +1,7 @@
 import type { Point, SceneEdge, SceneGroup, SceneNode } from "@archreel/layout";
 import { Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Icon } from "./icons.js";
-import { ACCENTS, DEFAULT_ACCENT, type Theme } from "./theme.js";
+import { ACCENTS, BADGES, DEFAULT_ACCENT, DEFAULT_BADGE, type Theme } from "./theme.js";
 
 // All timing is frame-derived; nothing here may read Math.random or Date.
 
@@ -29,22 +29,17 @@ function useAppear(appear: number): number {
   return spring({ frame: frame - appear, fps, config: { damping: 16, mass: 0.6 } });
 }
 
-export function Node({
-  node,
-  appear,
-  effects,
-  theme,
-  scale,
-}: {
+interface NodeProps {
   node: SceneNode;
   appear: number;
   effects: readonly Effect[];
   theme: Theme;
   scale: number;
-}) {
+}
+
+/** Frame-derived effect strengths shared by both node styles. */
+function useNodeEffects(effects: readonly Effect[], scale: number) {
   const frame = useCurrentFrame();
-  const shown = useAppear(appear);
-  const accent = ACCENTS[node.icon ?? ""] ?? DEFAULT_ACCENT;
   const fail = Math.max(
     0,
     ...effects.filter((e) => e.kind === "fail").map((e) => envelope(frame, e.from, e.to, 6)),
@@ -61,6 +56,86 @@ export function Node({
       interpolate(frame, [shaking.from, shaking.from + 20], [1, 0], clamp)
     : 0;
   const pulse = 0.75 + 0.25 * Math.sin(frame / 4);
+  return { fail, glow, shaking: shaking !== undefined, shakeX, pulse };
+}
+
+/** The icon is the node: a colored badge with a white glyph, label underneath. */
+export function IconNode({ node, appear, effects, theme, scale }: NodeProps) {
+  const shown = useAppear(appear);
+  const { fail, glow, shaking, shakeX, pulse } = useNodeEffects(effects, scale);
+  const badge = BADGES[node.icon ?? ""] ?? DEFAULT_BADGE;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: node.x,
+        top: node.y,
+        width: node.width,
+        height: node.height,
+        opacity: shown,
+        scale: interpolate(shown, [0, 1], [0.7, 1]),
+        translate: `${shakeX}px 0px`,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          borderRadius: node.width * 0.26,
+          background: badge,
+          boxShadow: [
+            `0 ${4 * scale}px ${14 * scale}px rgba(15, 23, 42, 0.18)`,
+            glow > 0 ? `0 0 0 ${5 * scale * glow}px ${theme.highlight}` : "",
+            glow > 0 ? `0 0 ${36 * scale * glow * pulse}px ${theme.highlight}` : "",
+            fail > 0 ? `0 0 ${36 * scale * fail}px ${theme.danger}` : "",
+          ]
+            .filter(Boolean)
+            .join(", "),
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: theme.danger,
+            opacity: fail * 0.85 * (shaking ? 1 : pulse),
+          }}
+        />
+        <div style={{ position: "relative", display: "flex" }}>
+          <Icon
+            name={node.icon ?? "server"}
+            size={node.width * 0.56}
+            color="#ffffff"
+            strokeWidth={1.9}
+          />
+        </div>
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          top: node.height + 10 * scale,
+          left: "50%",
+          translate: "-50% 0",
+          whiteSpace: "nowrap",
+          fontSize: 18 * scale,
+          fontWeight: 500,
+          color: fail > 0.5 ? theme.danger : theme.text,
+        }}
+      >
+        {node.label}
+      </div>
+    </div>
+  );
+}
+
+export function Node({ node, appear, effects, theme, scale }: NodeProps) {
+  const shown = useAppear(appear);
+  const accent = ACCENTS[node.icon ?? ""] ?? DEFAULT_ACCENT;
+  const { fail, glow, shaking, shakeX, pulse } = useNodeEffects(effects, scale);
 
   return (
     <div
@@ -126,7 +201,10 @@ export function Group({
   effects,
   theme,
   scale,
+  solid = false,
 }: {
+  /** Solid border (icon style) instead of dashed (card style). */
+  solid?: boolean;
   group: SceneGroup;
   appear: number;
   effects: readonly Effect[];
@@ -149,7 +227,7 @@ export function Group({
         opacity: shown,
         borderRadius: 24 * scale,
         background: theme.groupFill,
-        border: `${2 * scale}px dashed ${glow > 0 ? accent : theme.groupBorder}`,
+        border: `${(solid ? 1.5 : 2) * scale}px ${solid ? "solid" : "dashed"} ${glow > 0 ? accent : theme.groupBorder}`,
         boxShadow: glow > 0 ? `0 0 ${40 * scale * glow}px ${accent}` : "none",
       }}
     />

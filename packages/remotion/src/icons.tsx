@@ -77,7 +77,17 @@ const GLYPHS: Record<string, ReactNode> = {
   ),
 };
 
-export function Icon({ name, size, color }: { name: string; size: number; color: string }) {
+export function Icon({
+  name,
+  size,
+  color,
+  strokeWidth = 1.7,
+}: {
+  name: string;
+  size: number;
+  color: string;
+  strokeWidth?: number;
+}) {
   return (
     <svg
       width={size}
@@ -85,7 +95,7 @@ export function Icon({ name, size, color }: { name: string; size: number; color:
       viewBox="0 0 24 24"
       fill="none"
       stroke={color}
-      strokeWidth={1.7}
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
     >

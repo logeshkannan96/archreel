@@ -19,7 +19,7 @@ export const THEMES = {
     captionFill: "rgba(15, 23, 42, 0.92)",
   },
   light: {
-    background: "radial-gradient(ellipse at 50% 40%, #ffffff 0%, #eef2f7 80%)",
+    background: "#ffffff",
     node: "#ffffff",
     nodeBorder: "#cbd5e1",
     text: "#0f172a",
@@ -27,8 +27,8 @@ export const THEMES = {
     edge: "#94a3b8",
     packet: "#0284c7",
     packetText: "#ffffff",
-    groupFill: "rgba(59, 130, 246, 0.05)",
-    groupBorder: "#93c5fd",
+    groupFill: "#eaf5fc",
+    groupBorder: "#a8cbe3",
     danger: "#dc2626",
     highlight: "#f59e0b",
     captionFill: "rgba(255, 255, 255, 0.95)",
@@ -57,3 +57,19 @@ export const ACCENTS: Record<string, string> = {
   "k8s/pod": "#818cf8",
 };
 export const DEFAULT_ACCENT = "#60a5fa";
+
+/** Icon-style badge fills: deeper than ACCENTS so a white glyph reads on them. */
+export const BADGES: Record<string, string> = {
+  user: "#7c3aed",
+  server: "#2563eb",
+  database: "#059669",
+  postgres: "#0f766e",
+  cache: "#e11d48",
+  redis: "#dc2626",
+  queue: "#d97706",
+  kafka: "#b45309",
+  "aws/alb": "#ea580c",
+  "aws/s3": "#c2410c",
+  "k8s/pod": "#326ce5",
+};
+export const DEFAULT_BADGE = "#2563eb";

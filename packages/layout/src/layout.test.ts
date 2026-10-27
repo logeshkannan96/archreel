@@ -29,6 +29,22 @@ describe("layout", () => {
     expect(boxes(await buildScene(example(name)))).toMatchSnapshot();
   });
 
+  it("card style matches golden coordinates", async () => {
+    const s = example("url-shortener");
+    const scene = await buildScene({ ...s, theme: { base: "dark", colors: {}, nodes: "card" } });
+    expect(scene.nodeStyle).toBe("card");
+    expect(boxes(scene)).toMatchSnapshot();
+  });
+
+  it("icon style keeps neighbors clear of each node's label", async () => {
+    const scene = await buildScene(example("url-shortener"));
+    expect(scene.nodeStyle).toBe("icon");
+    // redis sits above pg in the same layer; pg's top must clear redis's label.
+    const [redis, pg] = ["redis", "pg"].map((id) => scene.nodes.find((n) => n.id === id));
+    const labelBottom = (redis?.y ?? 0) + (redis?.height ?? 0) + 34 * scene.scale;
+    expect(pg?.y).toBeGreaterThan(labelBottom);
+  });
+
   it.each(EXAMPLES)("%s is deterministic", async (name) => {
     expect(await buildScene(example(name))).toEqual(await buildScene(example(name)));
   });

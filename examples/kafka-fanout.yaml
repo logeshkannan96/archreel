@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=../packages/schema/archreel.schema.json
 version: 1
-theme: light
+theme: dark
 
 nodes:
   - { id: orders, label: Order Service, icon: server }

@@ -38,7 +38,12 @@ describe("valid specs", () => {
     const result = validateSpec({ version: 1, nodes: [{ id: "a" }] });
     expect(result).toMatchObject({
       ok: true,
-      spec: { theme: "dark", canvas: { width: 1920, height: 1080, fps: 30 }, edges: [], steps: [] },
+      spec: {
+        theme: "light",
+        canvas: { width: 1920, height: 1080, fps: 30 },
+        edges: [],
+        steps: [],
+      },
     });
   });
 
@@ -268,6 +273,11 @@ describe("invalid specs", () => {
       "non-hex colors are rejected (no url() fetches mid-render)",
       { theme: { colors: { background: "url(http://example.com/x.png)" } } },
       ['theme.colors.background: must be a hex color like "#38bdf8" or "#38bdf880"'],
+    ],
+    [
+      "unknown node style",
+      { theme: { nodes: "box" } },
+      ['theme.nodes: expected one of "icon", "card", got "box"'],
     ],
     [
       "misspelled direction",
