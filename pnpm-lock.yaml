@@ -36,6 +36,31 @@ importers:
         specifier: 5.0.5
         version: 5.0.5(@types/node@26.6.5)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.28.1)(terser@5.51.2)(yaml@2.9.1))
 
+  examples/embed:
+    dependencies:
+      '@archreel/layout':
+        specifier: workspace:*
+        version: link:../../packages/layout
+      '@archreel/remotion':
+        specifier: workspace:*
+        version: link:../../packages/remotion
+      '@archreel/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
+      react:
+        specifier: 19.3.1
+        version: 19.3.1
+      react-dom:
+        specifier: 19.3.1
+        version: 19.3.1(react@19.3.1)
+      remotion:
+        specifier: 4.0.539
+        version: 4.0.539(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+    devDependencies:
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
+
   packages/cli:
     dependencies:
       '@archreel/layout':
@@ -57,6 +82,15 @@ importers:
         specifier: 4.0.539
         version: 4.0.539(postcss@8.5.32)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@6.0.3)
       '@remotion/renderer':
+        specifier: 4.0.539
+        version: 4.0.539(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      react:
+        specifier: 19.3.1
+        version: 19.3.1
+      react-dom:
+        specifier: 19.3.1
+        version: 19.3.1(react@19.3.1)
+      remotion:
         specifier: 4.0.539
         version: 4.0.539(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
     devDependencies:
@@ -96,9 +130,10 @@ importers:
       '@fontsource/inter':
         specifier: 5.3.0
         version: 5.3.0
-      '@remotion/fonts':
-        specifier: 4.0.539
-        version: 4.0.539(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+    devDependencies:
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
       react:
         specifier: 19.3.1
         version: 19.3.1
@@ -108,10 +143,6 @@ importers:
       remotion:
         specifier: 4.0.539
         version: 4.0.539(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-    devDependencies:
-      '@types/react':
-        specifier: 19.3.0
-        version: 19.3.0
 
   packages/schema:
     dependencies:
@@ -560,9 +591,6 @@ packages:
 
   '@remotion/elevenlabs@4.0.539':
     resolution: {integrity: sha512-B/WswM4UWebc9kHhMGnFhQH13od27p6x480fe2UJCrljkCI5UZPKiRyzH6LIPAknyuYInds48DnQVNVaJwuqPg==}
-
-  '@remotion/fonts@4.0.539':
-    resolution: {integrity: sha512-ghG3eGO8cBsSZKdYymqXRFl8rwa4QAvDKrKLozh4yYK0kk9Ho3q0CgHjXlZzd357q1PGRT51o69iXAtGzU2m1w==}
 
   '@remotion/licensing@4.0.539':
     resolution: {integrity: sha512-rkKXwA+iISnUma61TudwROPTIEl2MVmiNzdKJNCywkEL379k1FPVuK+P7VeQiAKcVDM9h/Lwq67ZMfdR4r20SA==}
@@ -2619,13 +2647,6 @@ snapshots:
     dependencies:
       '@remotion/captions': 4.0.539
       zod: 4.5.4
-
-  '@remotion/fonts@4.0.539(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
-    dependencies:
-      remotion: 4.0.539(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-    transitivePeerDependencies:
-      - react
-      - react-dom
 
   '@remotion/licensing@4.0.539': {}
 

@@ -18,7 +18,10 @@
     "@archreel/schema": "workspace:*",
     "@remotion/bundler": "4.0.539",
     "@remotion/cli": "4.0.539",
-    "@remotion/renderer": "4.0.539"
+    "@remotion/renderer": "4.0.539",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.539"
   },
   "devDependencies": {
     "@types/pngjs": "6.0.5",

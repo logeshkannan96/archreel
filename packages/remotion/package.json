@@ -9,7 +9,11 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./entry": "./dist/entry.js"
+    "./entry": "./dist/entry.js",
+    "./id": {
+      "types": "./dist/id.d.ts",
+      "default": "./dist/id.js"
+    }
   },
   "files": [
     "dist",
@@ -18,13 +22,17 @@
   "dependencies": {
     "@archreel/layout": "workspace:*",
     "@archreel/schema": "workspace:*",
-    "@fontsource/inter": "5.3.0",
-    "@remotion/fonts": "4.0.539",
+    "@fontsource/inter": "5.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "remotion": "4.0.539"
   },
-  "devDependencies": {
-    "@types/react": "19.3.0"
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
+    "remotion": ">=4.0.0 <5.0.0"
   }
 }

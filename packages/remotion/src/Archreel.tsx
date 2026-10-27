@@ -1,5 +1,5 @@
 import type { Scene } from "@archreel/layout";
-import { AbsoluteFill, Sequence } from "remotion";
+import { Sequence, useVideoConfig } from "remotion";
 import {
   Callout,
   Caption,
@@ -10,13 +10,25 @@ import {
   Packet,
   type Effect,
 } from "./components.js";
+import "./fonts.js";
 import { resolveTheme } from "./theme.js";
 
-export interface VideoProps extends Record<string, unknown> {
+export interface ArchreelProps extends Record<string, unknown> {
+  /** From `buildScene(spec)`; plain JSON, so it can travel as input props. */
   scene: Scene;
 }
 
-export function Video({ scene }: VideoProps) {
+/**
+ * The animated diagram, `scene.width` × `scene.height` px, starting at frame 0.
+ * Embed it in any composition; wrap it in a `<Sequence>` to start it later.
+ */
+export function Archreel({ scene }: ArchreelProps) {
+  const { fps } = useVideoConfig();
+  if (fps !== scene.fps) {
+    throw new Error(
+      `archreel: the scene was built for ${scene.fps} fps but this composition runs at ${fps} fps — set canvas.fps: ${fps} in the spec`,
+    );
+  }
   const theme = resolveTheme(scene.theme);
   const { scale } = scene;
 
@@ -42,7 +54,16 @@ export function Video({ scene }: VideoProps) {
   const boxes = new Map([...scene.nodes, ...scene.groups].map((b) => [b.id, b]));
 
   return (
-    <AbsoluteFill style={{ background: theme.background, fontFamily: "Inter, sans-serif" }}>
+    <div
+      style={{
+        position: "relative",
+        width: scene.width,
+        height: scene.height,
+        overflow: "hidden",
+        background: theme.background,
+        fontFamily: "Inter, sans-serif",
+      }}
+    >
       {scene.groups.map((g) => (
         <Group
           key={g.id}
@@ -109,6 +130,6 @@ export function Video({ scene }: VideoProps) {
         }
         return null;
       })}
-    </AbsoluteFill>
+    </div>
   );
 }

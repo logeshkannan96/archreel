@@ -1,5 +1,5 @@
 import type { Scene } from "@archreel/layout";
-import { COMPOSITION_ID } from "@archreel/remotion";
+import { COMPOSITION_ID } from "@archreel/remotion/id";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import { ENTRY_POINT } from "./shared.js";
