@@ -282,14 +282,14 @@ function checkReferences(spec: Spec): Issue[] {
   const revealable = new Set([...nodeIds, ...groupIds]);
   spec.steps.forEach((step, i) => {
     const at: IssuePath = ["steps", i];
+    const target = (id: string, path: IssuePath): void => {
+      if (!revealable.has(id)) {
+        issues.push({ path, message: unknownRef("node or group", id, revealable, nodeAliases) });
+      }
+    };
     if ("reveal" in step) {
       step.reveal.forEach((id, j) => {
-        if (!revealable.has(id)) {
-          issues.push({
-            path: [...at, "reveal", j],
-            message: unknownRef("node or group", id, revealable, nodeAliases),
-          });
-        }
+        target(id, [...at, "reveal", j]);
       });
     } else if ("flow" in step) {
       const { from, to } = step.flow;
@@ -311,9 +311,11 @@ function checkReferences(spec: Spec): Issue[] {
         });
       }
     } else if ("fail" in step) {
-      node(step.fail.node, [...at, "fail", "node"]);
+      target(step.fail.node, [...at, "fail", "node"]);
     } else if ("highlight" in step) {
-      step.highlight.nodes.forEach((id, j) => node(id, [...at, "highlight", "nodes", j]));
+      step.highlight.nodes.forEach((id, j) => {
+        target(id, [...at, "highlight", "nodes", j]);
+      });
     }
   });
 

@@ -64,8 +64,12 @@ describe("valid specs", () => {
     expect(problems({ steps: [{ flow: { from: "pg", to: "api" } }] })).toEqual([]);
   });
 
-  it("allows revealing a group", () => {
-    expect(problems({ steps: [{ reveal: ["vpc"] }] })).toEqual([]);
+  it("allows revealing, highlighting and failing a group", () => {
+    expect(
+      problems({
+        steps: [{ reveal: ["vpc"] }, { highlight: { nodes: ["vpc"] } }, { fail: { node: "vpc" } }],
+      }),
+    ).toEqual([]);
   });
 });
 

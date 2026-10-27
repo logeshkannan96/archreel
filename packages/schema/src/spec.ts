@@ -107,7 +107,7 @@ export const FlowStep = z.strictObject({
 
 export const HighlightStep = z.strictObject({
   highlight: z.strictObject({
-    nodes: z.array(Id).min(1).max(MAX_NODES),
+    nodes: z.array(Id).min(1).max(MAX_NODES).meta({ description: "Node or group ids" }),
     caption: Text.optional(),
   }),
   duration: stepDuration,
@@ -115,7 +115,7 @@ export const HighlightStep = z.strictObject({
 
 export const FailStep = z.strictObject({
   fail: z.strictObject({
-    node: Id,
+    node: Id.meta({ description: "Node or group id" }),
     effect: z.enum(FAIL_EFFECTS).default("shake"),
     label: Text.optional(),
   }),

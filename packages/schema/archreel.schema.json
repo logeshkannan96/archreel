@@ -275,7 +275,8 @@
                       "maxLength": 64,
                       "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
                       "description": "Identifier referenced by edges and steps"
-                    }
+                    },
+                    "description": "Node or group ids"
                   },
                   "caption": {
                     "type": "string",
@@ -317,7 +318,7 @@
                     "type": "string",
                     "maxLength": 64,
                     "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
-                    "description": "Identifier referenced by edges and steps"
+                    "description": "Node or group id"
                   },
                   "effect": {
                     "default": "shake",
