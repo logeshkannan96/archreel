@@ -14,7 +14,7 @@
     "format": "prettier --write .",
     "test": "pnpm build && vitest run --exclude '**/visual.test.ts'",
     "schema:json": "pnpm build && node packages/schema/scripts/emit-json-schema.js",
-    "validate:examples": "pnpm build && node packages/cli/dist/bin.js validate examples/url-shortener.yaml examples/rate-limiter.yaml examples/kafka-fanout.yaml",
+    "validate:examples": "pnpm build && node packages/cli/dist/bin.js validate examples/url-shortener.yaml examples/rate-limiter.yaml examples/kafka-fanout.yaml examples/url-shortener-shorts.yaml",
     "test:visual": "pnpm build && ARCHREEL_VISUAL=1 vitest run packages/cli/src/visual.test.ts"
   },
   "devDependencies": {

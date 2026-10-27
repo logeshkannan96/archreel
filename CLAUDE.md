@@ -17,3 +17,6 @@
 - `@archreel/remotion` is embedded by host Remotion projects (`examples/embed`): keep remotion/react
   as peer deps, never import font assets from Node-side code (use `@archreel/remotion/id`), and
   run `pnpm clean && pnpm build` before packing — `tsc -b` leaves renamed files in dist.
+- Vertical (`direction: down`, default on portrait canvases) is the left-to-right ELK layout
+  transposed (sizes in, coordinates out). Don't switch ELK to DOWN: with INTERACTIVE crossing
+  minimization it misplaces group members and drops edge corners. A 9:16 canvas gets Shorts safe margins.

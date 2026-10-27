@@ -66,7 +66,7 @@ function matchGolden(actualFile: string, goldenName: string): string | undefined
 describe.skipIf(!process.env.ARCHREEL_VISUAL)("visual regression", () => {
   const tmp = mkdtempSync(join(tmpdir(), "archreel-visual-"));
 
-  it.for(["url-shortener", "rate-limiter", "kafka-fanout"])(
+  it.for(["url-shortener", "rate-limiter", "kafka-fanout", "url-shortener-shorts"])(
     "%s key frames match goldens",
     { timeout: TIMEOUT_MS },
     async (name, ctx) => {
