@@ -1,18 +1,6 @@
-export interface Theme {
-  background: string;
-  node: string;
-  nodeBorder: string;
-  text: string;
-  mutedText: string;
-  edge: string;
-  packet: string;
-  packetText: string;
-  groupFill: string;
-  groupBorder: string;
-  danger: string;
-  highlight: string;
-  captionFill: string;
-}
+import type { ThemeColor, ThemeSpec } from "@archreel/schema";
+
+export type Theme = Record<ThemeColor, string>;
 
 export const THEMES = {
   dark: {
@@ -46,6 +34,13 @@ export const THEMES = {
     captionFill: "rgba(255, 255, 255, 0.95)",
   },
 } as const satisfies Record<string, Theme>;
+
+/** A built-in theme, or a built-in with a custom theme's overrides applied. */
+export function resolveTheme(spec: ThemeSpec): Theme {
+  if (typeof spec === "string") return THEMES[spec];
+  const overrides = Object.entries(spec.colors).filter(([, v]) => v !== undefined);
+  return { ...THEMES[spec.base], ...Object.fromEntries(overrides) };
+}
 
 /** Icon accent colors; readable on both themes. */
 export const ACCENTS: Record<string, string> = {

@@ -1,5 +1,5 @@
 import type { Scene } from "@archreel/layout";
-import { AbsoluteFill, Sequence } from "remotion";
+import { AbsoluteFill, Html5Audio, Sequence, staticFile } from "remotion";
 import {
   Callout,
   Caption,
@@ -10,14 +10,14 @@ import {
   Packet,
   type Effect,
 } from "./components.js";
-import { THEMES } from "./theme.js";
+import { resolveTheme } from "./theme.js";
 
 export interface VideoProps extends Record<string, unknown> {
   scene: Scene;
 }
 
 export function Video({ scene }: VideoProps) {
-  const theme = THEMES[scene.theme];
+  const theme = resolveTheme(scene.theme);
   const { scale } = scene;
 
   // Effects per target id; a group effect also applies to its members.
@@ -43,6 +43,11 @@ export function Video({ scene }: VideoProps) {
 
   return (
     <AbsoluteFill style={{ background: theme.background, fontFamily: "Inter, sans-serif" }}>
+      {scene.audio === undefined ? null : (
+        <Html5Audio
+          src={/^https?:\/\//.test(scene.audio) ? scene.audio : staticFile(scene.audio)}
+        />
+      )}
       {scene.groups.map((g) => (
         <Group
           key={g.id}

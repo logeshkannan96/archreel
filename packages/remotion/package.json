@@ -17,6 +17,7 @@
   ],
   "dependencies": {
     "@archreel/layout": "workspace:*",
+    "@archreel/schema": "workspace:*",
     "@fontsource/inter": "5.3.0",
     "@remotion/fonts": "4.0.539",
     "react": "19.3.1",
