@@ -53,10 +53,13 @@ const CHAR_WIDTH = 11;
 const NODE_PADDING_X = 40;
 const LABEL_HEIGHT = 24;
 const GROUP_PADDING = { top: 52, side: 28, bottom: 28 };
+// Group labels render uppercase at 17px with letter spacing.
+const GROUP_LABEL_CHAR_WIDTH = 13.5;
+const GROUP_LABEL_INSET = 20;
 
 // Canvas margins; the bottom band is reserved for captions.
 const MARGIN = { top: 80, side: 100, bottom: 190 };
-const MAX_SCALE = 1.25;
+const MAX_SCALE = 1.5;
 
 // ELK options don't inherit into compound nodes, so groups get these too.
 const SHARED: Record<string, string> = {
@@ -113,11 +116,17 @@ export async function buildScene(spec: Spec): Promise<Scene> {
       children.push(toElkNode(n));
     } else if (!placedGroups.has(n.group)) {
       placedGroups.add(n.group);
+      const label = spec.groups.find((g) => g.id === n.group)?.label ?? "";
+      const minWidth = label.length * GROUP_LABEL_CHAR_WIDTH + 2 * GROUP_LABEL_INSET;
       children.push({
         id: n.group,
         layoutOptions: {
           ...SHARED,
           "elk.padding": `[top=${GROUP_PADDING.top},left=${GROUP_PADDING.side},bottom=${GROUP_PADDING.bottom},right=${GROUP_PADDING.side}]`,
+          // Keep the box at least as wide as its label.
+          "elk.nodeSize.constraints": "[MINIMUM_SIZE]",
+          "elk.nodeSize.minimum": `(${minWidth}, 0)`,
+          "elk.contentAlignment": "[H_CENTER, V_CENTER]",
         },
         children: spec.nodes.filter((m) => m.group === n.group).map(toElkNode),
       });
