@@ -1,6 +1,6 @@
 {
   "name": "@archreel/schema",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Spec schema, validation and JSON Schema for archreel",
   "keywords": [
     "architecture",

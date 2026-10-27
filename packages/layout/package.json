@@ -1,6 +1,6 @@
 {
   "name": "@archreel/layout",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Turns an archreel spec into a positioned, timed scene",
   "keywords": [
     "architecture",
