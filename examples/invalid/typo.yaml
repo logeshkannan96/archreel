@@ -1,0 +1,18 @@
+# Intentionally broken: shows archreel's validation errors.
+# yaml-language-server: $schema=../../packages/schema/archreel.schema.json
+version: 1
+
+nodes:
+  - { id: client, label: Client, icon: user }
+  - { id: api, label: API, icon: sever }
+  - { id: pg, label: Postgres, icon: postgres }
+
+edges:
+  - { from: client, to: api }
+  - { from: api, to: pg }
+
+steps:
+  - reveal: [client, api]
+  - flow: { from: client, to: api, duration: 1.2s }
+  - flow: { from: api, to: postgres, label: SELECT }
+  - higlight: { nodes: [pg] }

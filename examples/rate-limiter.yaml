@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=../packages/schema/archreel.schema.json
+version: 1
+
+nodes:
+  - { id: client, label: Client, icon: user }
+  - { id: gateway, label: API Gateway, icon: server }
+  - { id: limiter, label: Rate Limiter, icon: server, group: edge }
+  - { id: redis, label: Token Buckets, icon: redis, group: edge }
+  - { id: api, label: Orders API, icon: server }
+
+groups:
+  - { id: edge, label: Edge tier }
+
+edges:
+  - { from: client, to: gateway }
+  - { from: gateway, to: limiter }
+  - { from: limiter, to: redis, label: INCR }
+  - { from: gateway, to: api }
+
+steps:
+  - reveal: [client, gateway]
+  - reveal: [edge]
+  - flow: { from: client, to: gateway, label: POST /orders }
+  - flow: { from: gateway, to: limiter }
+  - flow: { from: limiter, to: redis, label: "INCR user:42" }
+  - flow: { from: redis, to: limiter, label: "7 / 10" }
+  - flow: { from: gateway, to: api }
+    duration: 800ms
+  - highlight: { nodes: [api], caption: Under the limit — request allowed }
+  - flow: { from: client, to: gateway, label: POST /orders (11th) }
+  - flow: { from: limiter, to: redis }
+  - fail: { node: gateway, effect: flash, label: 429 Too Many Requests }
+  - flow: { from: gateway, to: client, label: "Retry-After: 30" }

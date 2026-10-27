@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=../packages/schema/archreel.schema.json
+version: 1
+theme: light
+
+nodes:
+  - { id: orders, label: Order Service, icon: server }
+  - { id: kafka, label: orders topic, icon: kafka }
+  - { id: email, label: Email, icon: k8s/pod, group: consumers }
+  - { id: analytics, label: Analytics, icon: k8s/pod, group: consumers }
+  - { id: inventory, label: Inventory, icon: k8s/pod, group: consumers }
+  - { id: lake, label: Data Lake, icon: aws/s3 }
+
+groups:
+  - { id: consumers, label: Consumer groups }
+
+edges:
+  - { from: orders, to: kafka, label: produce }
+  - { from: kafka, to: email }
+  - { from: kafka, to: analytics }
+  - { from: kafka, to: inventory }
+  - { from: analytics, to: lake }
+
+steps:
+  - reveal: [orders, kafka]
+  - flow: { from: orders, to: kafka, label: OrderPlaced }
+  - reveal: [consumers]
+  - flow: { from: kafka, to: email }
+  - flow: { from: kafka, to: analytics }
+  - flow: { from: kafka, to: inventory }
+  - fail: { node: inventory, label: consumer lag }
+  - pause: 500ms
+  - highlight: { nodes: [inventory], caption: Replays from its committed offset }
+  - flow: { from: analytics, to: lake, label: Parquet }

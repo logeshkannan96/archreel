@@ -1,0 +1,367 @@
+{
+  "$id": "https://unpkg.com/@archreel/schema/archreel.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 1
+    },
+    "theme": {
+      "default": "dark",
+      "type": "string",
+      "enum": [
+        "dark",
+        "light"
+      ]
+    },
+    "canvas": {
+      "default": {
+        "width": 1920,
+        "height": 1080,
+        "fps": 30
+      },
+      "type": "object",
+      "properties": {
+        "width": {
+          "default": 1920,
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 7680,
+          "multipleOf": 2
+        },
+        "height": {
+          "default": 1080,
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 7680,
+          "multipleOf": 2
+        },
+        "fps": {
+          "default": 30,
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 60
+        }
+      },
+      "additionalProperties": false
+    },
+    "nodes": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+            "description": "Identifier referenced by edges and steps"
+          },
+          "label": {
+            "description": "Display text; defaults to id",
+            "type": "string",
+            "minLength": 1
+          },
+          "icon": {
+            "type": "string",
+            "enum": [
+              "user",
+              "server",
+              "database",
+              "cache",
+              "queue",
+              "aws/alb",
+              "aws/s3",
+              "k8s/pod",
+              "redis",
+              "postgres",
+              "kafka"
+            ]
+          },
+          "group": {
+            "description": "Id of the group this node sits in",
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+          },
+          "position": {
+            "description": "Manual position override in canvas pixels; skips auto-layout",
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "groups": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+            "description": "Identifier referenced by edges and steps"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "edges": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+            "description": "Identifier referenced by edges and steps"
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+            "description": "Identifier referenced by edges and steps"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "reveal": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+                  "description": "Identifier referenced by edges and steps"
+                },
+                "description": "Node or group ids to fade in"
+              },
+              "duration": {
+                "description": "How long this step plays; defaults per step kind",
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^(\\d+(?:\\.\\d+)?)(ms|s)$"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "reveal"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "flow": {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+                    "description": "Identifier referenced by edges and steps"
+                  },
+                  "to": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+                    "description": "Identifier referenced by edges and steps"
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "from",
+                  "to"
+                ],
+                "additionalProperties": false
+              },
+              "duration": {
+                "description": "How long this step plays; defaults per step kind",
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^(\\d+(?:\\.\\d+)?)(ms|s)$"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "flow"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "highlight": {
+                "type": "object",
+                "properties": {
+                  "nodes": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+                      "description": "Identifier referenced by edges and steps"
+                    }
+                  },
+                  "caption": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "nodes"
+                ],
+                "additionalProperties": false
+              },
+              "duration": {
+                "description": "How long this step plays; defaults per step kind",
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^(\\d+(?:\\.\\d+)?)(ms|s)$"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "highlight"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "fail": {
+                "type": "object",
+                "properties": {
+                  "node": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+                    "description": "Identifier referenced by edges and steps"
+                  },
+                  "effect": {
+                    "default": "shake",
+                    "type": "string",
+                    "enum": [
+                      "shake",
+                      "flash"
+                    ]
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "node"
+                ],
+                "additionalProperties": false
+              },
+              "duration": {
+                "description": "How long this step plays; defaults per step kind",
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^(\\d+(?:\\.\\d+)?)(ms|s)$"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "fail"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "pause": {
+                "description": "Seconds as a number, or a string like \"1.2s\" or \"500ms\"",
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^(\\d+(?:\\.\\d+)?)(ms|s)$"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "pause"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "version",
+    "nodes"
+  ],
+  "additionalProperties": false,
+  "title": "archreel spec",
+  "description": "Declarative architecture explainer video"
+}
