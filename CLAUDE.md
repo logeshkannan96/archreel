@@ -12,3 +12,8 @@
 - Layout (elkjs 0.12): `considerModelOrder` on group nodes crashes ELK; stability comes from
   INTERACTIVE crossing minimization fed spec-order y-hints. Root and groups must share that strategy.
 - Re-render example GIFs after visual changes: `node packages/cli/dist/bin.js render examples/<n>.yaml -o examples/<n>.gif`.
+- Voiceover: `at` anchors resolve in `layout/src/anchors.ts` (needs captions, so not in schema
+  validation); the CLI reports them via `locateIssues`. Audio is copied alone into a temp public
+  dir and played with core `Html5Audio` — never point `publicDir` at the user's folder.
+- Mermaid import is a hand-written parser for the flowchart subset (`packages/mermaid`); unsupported
+  syntax must fail with its line, styling lines warn. Keep it dependency-free.
