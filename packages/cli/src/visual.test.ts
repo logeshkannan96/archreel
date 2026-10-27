@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildScene, type Scene } from "@archreel/layout";
 import { loadSpec } from "@archreel/schema";
+import { bundle } from "@remotion/bundler";
+import { renderStill, selectComposition } from "@remotion/renderer";
 import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
@@ -39,6 +41,28 @@ function keyFrames(s: Scene): number[] {
 
 const read = (file: string): PNG => PNG.sync.read(readFileSync(file));
 
+/**
+ * Compares a rendered PNG with its golden. Returns the golden's path if it was
+ * missing and has just been written (the caller then skips).
+ */
+function matchGolden(actualFile: string, goldenName: string): string | undefined {
+  const golden = join(goldens, goldenName);
+  const actual = read(actualFile);
+  if (!existsSync(golden)) {
+    mkdirSync(goldens, { recursive: true });
+    writeFileSync(golden, PNG.sync.write(actual));
+    return golden;
+  }
+  const expected = read(golden);
+  expect([actual.width, actual.height]).toEqual([expected.width, expected.height]);
+  const diff = pixelmatch(actual.data, expected.data, null, actual.width, actual.height, {
+    threshold: PIXEL_THRESHOLD,
+  });
+  const ratio = diff / (actual.width * actual.height);
+  expect(ratio, `${goldenName}: ${diff} pixels differ`).toBeLessThanOrEqual(MAX_DIFF_RATIO);
+  return undefined;
+}
+
 describe.skipIf(!process.env.ARCHREEL_VISUAL)("visual regression", () => {
   const tmp = mkdtempSync(join(tmpdir(), "archreel-visual-"));
 
@@ -50,26 +74,9 @@ describe.skipIf(!process.env.ARCHREEL_VISUAL)("visual regression", () => {
       const frames = keyFrames(s);
       await renderFrames(s, frames, (f) => join(tmp, `${name}-${f}.png`), SCALE);
 
-      const missing: string[] = [];
-      for (const f of frames) {
-        const golden = join(goldens, `${name}-${f}.png`);
-        const actual = read(join(tmp, `${name}-${f}.png`));
-        if (!existsSync(golden)) {
-          mkdirSync(goldens, { recursive: true });
-          writeFileSync(golden, PNG.sync.write(actual));
-          missing.push(golden);
-          continue;
-        }
-        const expected = read(golden);
-        expect([actual.width, actual.height]).toEqual([expected.width, expected.height]);
-        const diff = pixelmatch(actual.data, expected.data, null, actual.width, actual.height, {
-          threshold: PIXEL_THRESHOLD,
-        });
-        const ratio = diff / (actual.width * actual.height);
-        expect(ratio, `${name} frame ${f}: ${diff} pixels differ`).toBeLessThanOrEqual(
-          MAX_DIFF_RATIO,
-        );
-      }
+      const missing = frames
+        .map((f) => matchGolden(join(tmp, `${name}-${f}.png`), `${name}-${f}.png`))
+        .filter((g) => g !== undefined);
       if (missing.length > 0) ctx.skip(`wrote new goldens: ${missing.join(", ")}`);
     },
   );
@@ -80,5 +87,20 @@ describe.skipIf(!process.env.ARCHREEL_VISUAL)("visual regression", () => {
     await renderFrames(s, [frame], () => join(tmp, "a.png"), SCALE);
     await renderFrames(s, [frame], () => join(tmp, "b.png"), SCALE);
     expect(readFileSync(join(tmp, "a.png")).equals(readFileSync(join(tmp, "b.png")))).toBe(true);
+  });
+
+  // archreel as one element of a host Remotion project (examples/embed).
+  it("renders inside a host composition", { timeout: TIMEOUT_MS }, async (ctx) => {
+    const embed = join(root, "examples/embed");
+    const serveUrl = await bundle({
+      entryPoint: join(embed, "dist/index.js"), // compiled by `pnpm build`
+      publicDir: join(embed, "public"),
+    });
+    const composition = await selectComposition({ serveUrl, id: "Explainer" });
+    // Title (45 frames), then the diagram mid-way through its first flow.
+    const output = join(tmp, "embed.png");
+    await renderStill({ composition, serveUrl, frame: 45 + 70, scale: SCALE, output });
+    const written = matchGolden(output, "embed-115.png");
+    if (written !== undefined) ctx.skip(`wrote new golden: ${written}`);
   });
 });

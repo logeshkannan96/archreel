@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=../../../packages/schema/archreel.schema.json
+# Sized to sit under the host's title; transparent so the host's background shows.
+version: 1
+theme: { base: dark, colors: { background: "#00000000" } }
+canvas: { width: 1080, height: 1000, fps: 30 }
+
+nodes:
+  - { id: app, label: App, icon: server }
+  - { id: cache, label: Redis, icon: redis }
+  - { id: db, label: Postgres, icon: postgres }
+
+edges:
+  - { from: app, to: cache }
+  - { from: app, to: db }
+
+steps:
+  - reveal: [app]
+  - flow: { from: app, to: cache, label: GET }
+  - fail: { node: cache, label: miss }
+  - flow: { from: app, to: db, label: SELECT }
+  - flow: { from: app, to: cache, label: SET }
