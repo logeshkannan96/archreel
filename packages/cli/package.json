@@ -12,7 +12,16 @@
     "!dist/**/*.test.*"
   ],
   "dependencies": {
+    "@archreel/layout": "workspace:*",
+    "@archreel/remotion": "workspace:*",
     "@archreel/schema": "workspace:*",
-    "@archreel/layout": "workspace:*"
+    "@remotion/bundler": "4.0.539",
+    "@remotion/cli": "4.0.539",
+    "@remotion/renderer": "4.0.539"
+  },
+  "devDependencies": {
+    "@types/pngjs": "6.0.5",
+    "pixelmatch": "8.0.0",
+    "pngjs": "7.0.0"
   }
 }

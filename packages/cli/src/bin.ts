@@ -1,74 +1,105 @@
 #!/usr/bin/env node
-import { readFile, stat } from "node:fs/promises";
 import { parseArgs } from "node:util";
-import { MAX_SPEC_BYTES, formatIssues, loadSpec } from "@archreel/schema";
+import { buildScene } from "@archreel/layout";
+import { log, readSpec } from "./shared.js";
 
 const USAGE = `Usage: archreel <command> [options]
 
 Commands:
-  validate <file...>   Check specs and report problems with file:line:col
+  validate <file...>        Check specs and report problems with file:line:col
+  render <file> -o <out>    Render to MP4, or GIF if <out> ends in .gif
+  preview <file>            Open Remotion Studio; reloads when the spec changes
 
 Options:
-  -h, --help           Show this help`;
+  -o, --out <path>          Output file for render (default: <file>.mp4)
+      --scale <n>           Output scale for render (default: 1, or 0.5 for GIF)
+  -h, --help                Show this help`;
 
 const EXIT_INVALID = 1;
 const EXIT_USAGE = 2;
 
 async function validate(files: string[]): Promise<number> {
-  if (files.length === 0) {
-    process.stderr.write(`archreel validate: expected at least one spec file\n\n${USAGE}\n`);
-    return EXIT_USAGE;
-  }
+  if (files.length === 0) return usage("validate: expected at least one spec file");
   let failed = 0;
   for (const file of files) {
-    let source: string;
-    try {
-      // Check size before reading so a huge file can't exhaust memory.
-      if ((await stat(file)).size > MAX_SPEC_BYTES) {
-        process.stderr.write(`${file}: larger than ${MAX_SPEC_BYTES / 1_000_000} MB\n`);
-        failed++;
-        continue;
-      }
-      source = await readFile(file, "utf8");
-    } catch (err) {
-      const reason = err instanceof Error && "code" in err ? String(err.code) : String(err);
-      process.stderr.write(`${file}: cannot read file (${reason})\n`);
-      failed++;
-      continue;
-    }
-    const result = loadSpec(source);
-    if (result.ok) {
-      const { nodes, edges, steps } = result.spec;
+    const spec = await readSpec(file);
+    if (spec) {
+      const { nodes, edges, steps } = spec;
       process.stdout.write(
         `✓ ${file} — ${nodes.length} nodes, ${edges.length} edges, ${steps.length} steps\n`,
       );
     } else {
       failed++;
-      const n = result.issues.length;
-      process.stderr.write(`${formatIssues(file, result.issues)}\n`);
-      process.stderr.write(`✗ ${file} — ${n} problem${n === 1 ? "" : "s"}\n`);
     }
   }
   return failed > 0 ? EXIT_INVALID : 0;
 }
 
-async function main(argv: string[]): Promise<number> {
-  const { positionals, values } = parseArgs({
-    args: argv,
-    allowPositionals: true,
-    options: { help: { type: "boolean", short: "h" } },
-  });
-  const [command, ...rest] = positionals;
-  if (values.help || command === undefined) {
-    process.stdout.write(`${USAGE}\n`);
-    return command === undefined && !values.help ? EXIT_USAGE : 0;
+async function render(
+  file: string | undefined,
+  out: string | undefined,
+  scale: string | undefined,
+): Promise<number> {
+  if (file === undefined) return usage("render: expected a spec file");
+  const parsedScale = scale === undefined ? undefined : Number(scale);
+  if (parsedScale !== undefined && !(parsedScale > 0 && parsedScale <= 4)) {
+    return usage(`render: --scale must be a number in (0, 4], got "${scale ?? ""}"`);
   }
-  if (command === "validate") return validate(rest);
-  process.stderr.write(`archreel: unknown command "${command}"\n\n${USAGE}\n`);
+  const spec = await readSpec(file);
+  if (!spec) return EXIT_INVALID;
+  const target = out ?? file.replace(/\.(ya?ml|json)$/i, "") + ".mp4";
+  // Loaded lazily: Remotion's renderer is heavy and `validate` doesn't need it.
+  const { renderScene } = await import("./render.js");
+  await renderScene(await buildScene(spec), { out: target, scale: parsedScale, log });
+  log(`✓ wrote ${target}`);
+  return 0;
+}
+
+async function main(argv: string[]): Promise<number> {
+  let parsed;
+  try {
+    parsed = parseArgs({
+      args: argv,
+      allowPositionals: true,
+      options: {
+        help: { type: "boolean", short: "h" },
+        out: { type: "string", short: "o" },
+        scale: { type: "string" },
+      },
+    });
+  } catch (err) {
+    return usage(err instanceof Error ? err.message : String(err));
+  }
+  const { positionals, values } = parsed;
+  const [command, ...rest] = positionals;
+  if (values.help) {
+    process.stdout.write(`${USAGE}\n`);
+    return 0;
+  }
+  switch (command) {
+    case undefined:
+      process.stdout.write(`${USAGE}\n`);
+      return EXIT_USAGE;
+    case "validate":
+      return validate(rest);
+    case "render":
+      return render(rest[0], values.out, values.scale);
+    case "preview": {
+      if (rest[0] === undefined) return usage("preview: expected a spec file");
+      const { preview } = await import("./preview.js");
+      return preview(rest[0], log);
+    }
+    default:
+      return usage(`unknown command "${command}"`);
+  }
+}
+
+function usage(message: string): number {
+  log(`archreel: ${message}\n\n${USAGE}`);
   return EXIT_USAGE;
 }
 
 process.exitCode = await main(process.argv.slice(2)).catch((err: unknown) => {
-  process.stderr.write(`archreel: ${err instanceof Error ? err.message : String(err)}\n`);
-  return EXIT_USAGE;
+  log(`archreel: ${err instanceof Error ? err.message : String(err)}`);
+  return EXIT_INVALID;
 });
