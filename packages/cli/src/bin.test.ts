@@ -68,3 +68,36 @@ describe("archreel validate", () => {
     expect(r.stdout).toContain("validate <file...>");
   });
 });
+
+describe("archreel init", () => {
+  it("writes a starter spec that validates, and won't overwrite it", async () => {
+    const file = join(mkdtempSync(join(tmpdir(), "archreel-init-")), "archreel.yaml");
+    expect((await run("init", file)).code).toBe(0);
+    expect((await run("validate", file)).stdout).toContain("4 nodes, 3 edges, 7 steps");
+
+    const again = await run("init", file);
+    expect(again.code).toBe(1);
+    expect(again.stderr).toContain("already exists; pass --force to overwrite it");
+    expect((await run("init", file, "--force")).code).toBe(0);
+  });
+
+  it("converts a Mermaid flowchart with --from, reporting what it skipped", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "archreel-init-"));
+    writeFileSync(join(dir, "d.mmd"), "graph TD\n  a[Web] --> b[(Orders)]\n");
+    const r = await run("init", join(dir, "s.yaml"), "--from", join(dir, "d.mmd"));
+    expect(r.code).toBe(0);
+    expect(r.stderr).toContain("d.mmd:1 warning: direction TD is ignored");
+    expect(readFileSync(join(dir, "s.yaml"), "utf8")).toContain(
+      "  - { id: b, label: Orders, icon: database }",
+    );
+    expect((await run("validate", join(dir, "s.yaml"))).code).toBe(0);
+  });
+
+  it("exits 1 with a located error for an unsupported diagram", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "archreel-init-"));
+    writeFileSync(join(dir, "d.mmd"), "sequenceDiagram\n");
+    const r = await run("init", join(dir, "s.yaml"), "--from", join(dir, "d.mmd"));
+    expect(r.code).toBe(1);
+    expect(r.stderr).toContain("d.mmd:1 expected");
+  });
+});

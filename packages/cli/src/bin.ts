@@ -8,10 +8,13 @@ Commands:
   validate <file...>        Check specs and report problems with file:line:col
   render <file> -o <out>    Render to MP4, or GIF if <out> ends in .gif
   preview <file>            Open Remotion Studio; reloads when the spec changes
+  init [file]               Write a starter spec (default: archreel.yaml)
 
 Options:
   -o, --out <path>          Output file for render (default: <file>.mp4)
       --scale <n>           Output scale for render (default: 1, or 0.5 for GIF)
+      --from <diagram.mmd>  For init: convert a Mermaid flowchart instead
+      --force               For init: overwrite an existing file
   -h, --help                Show this help`;
 
 const EXIT_INVALID = 1;
@@ -69,6 +72,8 @@ async function main(argv: string[]): Promise<number> {
         help: { type: "boolean", short: "h" },
         out: { type: "string", short: "o" },
         scale: { type: "string" },
+        from: { type: "string" },
+        force: { type: "boolean" },
       },
     });
   } catch (err) {
@@ -92,6 +97,10 @@ async function main(argv: string[]): Promise<number> {
       if (rest[0] === undefined) return usage("preview: expected a spec file");
       const { preview } = await import("./preview.js");
       return preview(rest[0], log);
+    }
+    case "init": {
+      const { init } = await import("./init.js");
+      return init(rest[0] ?? "archreel.yaml", { from: values.from, force: values.force, log });
     }
     default:
       return usage(`unknown command "${command}"`);
