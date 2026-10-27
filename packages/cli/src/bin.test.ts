@@ -48,6 +48,12 @@ describe("archreel validate", () => {
     expect((await run("frobnicate")).stderr).toContain('unknown command "frobnicate"');
   });
 
+  it("prints its version", async () => {
+    const r = await run("--version");
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/^\d+\.\d+\.\d+\n$/);
+  });
+
   it("prints help", async () => {
     const r = await run("--help");
     expect(r.code).toBe(0);

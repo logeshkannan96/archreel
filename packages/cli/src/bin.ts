@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createRequire } from "node:module";
 import { parseArgs } from "node:util";
 import { buildScene } from "@archreel/layout";
 import { log, readSpec } from "./shared.js";
@@ -16,6 +17,7 @@ Options:
       --scale <n>           Output scale for render (default: 1, or 0.5 for GIF)
       --from <diagram.mmd>  For init: convert a Mermaid flowchart instead
       --force               For init: overwrite an existing file
+  -v, --version             Print the version
   -h, --help                Show this help`;
 
 const EXIT_INVALID = 1;
@@ -66,6 +68,7 @@ async function main(argv: string[]): Promise<number> {
       allowPositionals: true,
       options: {
         help: { type: "boolean", short: "h" },
+        version: { type: "boolean", short: "v" },
         out: { type: "string", short: "o" },
         scale: { type: "string" },
         from: { type: "string" },
@@ -77,6 +80,11 @@ async function main(argv: string[]): Promise<number> {
   }
   const { positionals, values } = parsed;
   const [command, ...rest] = positionals;
+  if (values.version) {
+    const pkg = createRequire(import.meta.url)("../package.json") as { version: string };
+    process.stdout.write(`${pkg.version}\n`);
+    return 0;
+  }
   if (values.help) {
     process.stdout.write(`${USAGE}\n`);
     return 0;
