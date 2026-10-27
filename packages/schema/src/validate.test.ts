@@ -270,11 +270,16 @@ describe("invalid specs", () => {
       ['theme.colors.background: must be a hex color like "#38bdf8" or "#38bdf880"'],
     ],
     [
+      "misspelled direction",
+      { direction: "dwon" },
+      ['direction: expected one of "right", "down", got "dwon" — did you mean "down"?'],
+    ],
+    [
       "misspelled color key",
       { theme: { colors: { pakcet: "#fff" } } },
       ['theme.colors.pakcet: unknown key "pakcet" — did you mean "packet"?'],
     ],
-  ])("theme: %s", (_name, overrides, expected) => {
+  ])("theme and direction: %s", (_name, overrides, expected) => {
     expect(problems(overrides)).toEqual(expected);
   });
 

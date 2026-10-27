@@ -128,3 +128,44 @@ exports[`layout > url-shortener matches golden coordinates 1`] = `
   ],
 }
 `;
+
+exports[`layout > url-shortener-shorts matches golden coordinates 1`] = `
+{
+  "alb": [
+    443.46,
+    488.04,
+    193.07,
+    154.46,
+  ],
+  "api": [
+    443.46,
+    857.46,
+    193.07,
+    154.46,
+  ],
+  "client": [
+    443.46,
+    192,
+    193.07,
+    154.46,
+  ],
+  "pg": [
+    578.61,
+    1153.5,
+    193.07,
+    154.46,
+  ],
+  "redis": [
+    308.31,
+    1153.5,
+    193.07,
+    154.46,
+  ],
+  "vpc": [
+    272.27,
+    790.53,
+    535.45,
+    553.47,
+  ],
+}
+`;

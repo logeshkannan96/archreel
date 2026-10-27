@@ -33,6 +33,8 @@ export interface SceneEdge {
 export interface Scene {
   width: number;
   height: number;
+  /** Distance from the bottom edge to the caption band, clear of platform UI. */
+  captionBottom: number;
   fps: number;
   theme: ThemeSpec;
   /** Layout units → canvas pixels; renderers scale text and icons by it. */
@@ -59,6 +61,28 @@ const GROUP_LABEL_INSET = 20;
 
 // Canvas margins; the bottom band is reserved for captions.
 const MARGIN = { top: 80, side: 100, bottom: 190 };
+const CAPTION_BOTTOM = 60;
+// 9:16 is a Short: YouTube overlays search at the top, buttons on the right, and the
+// title/channel at the bottom, so the diagram and captions stay inside a safe area.
+const SHORTS_MARGIN = { top: 0.1, side: 0.11, bottom: 0.3 }; // fractions of height/width
+const SHORTS_CAPTION_BOTTOM = 0.22;
+
+function safeArea(width: number, height: number) {
+  if (Math.abs(height / width - 16 / 9) < 0.01) {
+    return {
+      margin: {
+        top: height * SHORTS_MARGIN.top,
+        side: width * SHORTS_MARGIN.side,
+        bottom: height * SHORTS_MARGIN.bottom,
+      },
+      captionBottom: round(height * SHORTS_CAPTION_BOTTOM),
+    };
+  }
+  return {
+    margin: MARGIN,
+    captionBottom: round((CAPTION_BOTTOM * Math.min(width, height)) / 1080),
+  };
+}
 const MAX_SCALE = 1.5;
 
 // ELK options don't inherit into compound nodes, so groups get these too.
@@ -66,13 +90,16 @@ const SHARED: Record<string, string> = {
   "elk.spacing.nodeNode": "60",
   "elk.layered.spacing.nodeNodeBetweenLayers": "110",
   "elk.spacing.edgeNode": "30",
-  // Stability: each layer is ordered by the y-hints we pass (= spec order), so adding
+  // Stability: each layer is ordered by the position hints we pass (= spec order), so adding
   // a node doesn't reshuffle the rest. Root and groups must share this processor.
   "elk.layered.crossingMinimization.strategy": "INTERACTIVE",
   // Centers fan-in/fan-out sources; changes less globally than NETWORK_SIMPLEX.
   "elk.layered.nodePlacement.bk.fixedAlignment": "BALANCED",
 };
 
+// Always laid out left to right; "down" is that layout transposed (see buildScene).
+// ELK's own DOWN with INTERACTIVE crossing minimization misplaces group members
+// and drops edge corners (elkjs 0.12), and other strategies reshuffle on edits.
 const ELK_OPTIONS: Record<string, string> = {
   ...SHARED,
   "elk.algorithm": "layered",
@@ -97,16 +124,26 @@ export function nodeWidth(label: string): number {
 export async function buildScene(spec: Spec): Promise<Scene> {
   const { width, height, fps } = spec.canvas;
   const timeline = buildTimeline(spec, fps);
+  const direction = spec.direction ?? (height > width ? "down" : "right");
+  const { margin, captionBottom } = safeArea(width, height);
   const elk = new ELK();
 
   const specIndex = new Map(spec.nodes.map((n, i) => [n.id, i]));
+  // Flowing down = the left-to-right layout with x and y swapped: sizes go in
+  // transposed, and every coordinate comes out transposed.
+  const down = direction === "down";
+  const size = (width: number, height: number) =>
+    down ? { width: height, height: width } : { width, height };
+  const unswap = <T extends Point>(p: T): T => (down ? { ...p, x: p.y, y: p.x } : p);
+  const unswapBox = (b: Box): Box =>
+    down ? { x: b.y, y: b.x, width: b.height, height: b.width } : b;
+
   const toElkNode = (n: Spec["nodes"][number]): ElkNode => ({
     id: n.id,
     // INTERACTIVE crossing minimization orders each layer by these hints = spec order.
     x: 0,
-    y: (specIndex.get(n.id) ?? 0) * NODE_HEIGHT,
-    width: nodeWidth(n.label ?? n.id),
-    height: NODE_HEIGHT,
+    y: (specIndex.get(n.id) ?? 0) * NODE_MAX_WIDTH,
+    ...size(nodeWidth(n.label ?? n.id), NODE_HEIGHT),
   });
   // Children follow spec order (a group sits where its first member is) so
   // ELK's model-order constraints track what the author wrote.
@@ -119,14 +156,20 @@ export async function buildScene(spec: Spec): Promise<Scene> {
       placedGroups.add(n.group);
       const label = spec.groups.find((g) => g.id === n.group)?.label ?? "";
       const minWidth = label.length * GROUP_LABEL_CHAR_WIDTH + 2 * GROUP_LABEL_INSET;
+      const { top, side, bottom } = GROUP_PADDING;
+      // Transposed, the label's top padding is ELK's left and the bottom is its right.
+      const padding = down
+        ? `[top=${side},left=${top},bottom=${side},right=${bottom}]`
+        : `[top=${top},left=${side},bottom=${bottom},right=${side}]`;
+      const min = size(minWidth, 0);
       children.push({
         id: n.group,
         layoutOptions: {
           ...SHARED,
-          "elk.padding": `[top=${GROUP_PADDING.top},left=${GROUP_PADDING.side},bottom=${GROUP_PADDING.bottom},right=${GROUP_PADDING.side}]`,
+          "elk.padding": padding,
           // Keep the box at least as wide as its label.
           "elk.nodeSize.constraints": "[MINIMUM_SIZE]",
-          "elk.nodeSize.minimum": `(${minWidth}, 0)`,
+          "elk.nodeSize.minimum": `(${min.width}, ${min.height})`,
           "elk.contentAlignment": "[H_CENTER, V_CENTER]",
         },
         children: spec.nodes.filter((m) => m.group === n.group).map(toElkNode),
@@ -135,8 +178,7 @@ export async function buildScene(spec: Spec): Promise<Scene> {
   }
   // Empty groups still get a (small) box.
   for (const g of spec.groups) {
-    if (!placedGroups.has(g.id))
-      children.push({ id: g.id, width: NODE_MIN_WIDTH, height: NODE_HEIGHT });
+    if (!placedGroups.has(g.id)) children.push({ id: g.id, ...size(NODE_MIN_WIDTH, NODE_HEIGHT) });
   }
   const edges: ElkExtendedEdge[] = spec.edges.map((e) => ({
     id: edgeId(e.from, e.to),
@@ -144,7 +186,7 @@ export async function buildScene(spec: Spec): Promise<Scene> {
     targets: [e.to],
     ...(e.label === undefined
       ? {}
-      : { labels: [{ text: e.label, width: textWidth(e.label) * 0.8, height: LABEL_HEIGHT }] }),
+      : { labels: [{ text: e.label, ...size(textWidth(e.label) * 0.8, LABEL_HEIGHT) }] }),
   }));
 
   const root = await elk.layout({ id: "root", layoutOptions: ELK_OPTIONS, children, edges });
@@ -152,7 +194,10 @@ export async function buildScene(spec: Spec): Promise<Scene> {
   // Collect absolute layout-unit geometry.
   const boxes = new Map<string, Box>();
   const visit = (n: ElkNode): void => {
-    boxes.set(n.id, { x: n.x ?? 0, y: n.y ?? 0, width: n.width ?? 0, height: n.height ?? 0 });
+    boxes.set(
+      n.id,
+      unswapBox({ x: n.x ?? 0, y: n.y ?? 0, width: n.width ?? 0, height: n.height ?? 0 }),
+    );
     n.children?.forEach(visit);
   };
   root.children?.forEach(visit);
@@ -163,13 +208,13 @@ export async function buildScene(spec: Spec): Promise<Scene> {
     if (!s) continue;
     const label = e.labels?.[0];
     routed.set(e.id, {
-      points: [s.startPoint, ...(s.bendPoints ?? []), s.endPoint],
+      points: [s.startPoint, ...(s.bendPoints ?? []), s.endPoint].map(unswap),
       ...(label
         ? {
-            label: {
+            label: unswap({
               x: (label.x ?? 0) + (label.width ?? 0) / 2,
               y: (label.y ?? 0) + (label.height ?? 0) / 2,
-            },
+            }),
           }
         : {}),
     });
@@ -184,11 +229,11 @@ export async function buildScene(spec: Spec): Promise<Scene> {
   const minY = Math.min(...all.map((b) => b.y));
   const maxX = Math.max(...all.map((b) => b.x + b.width));
   const maxY = Math.max(...all.map((b) => b.y + b.height));
-  const availW = width - 2 * MARGIN.side;
-  const availH = height - MARGIN.top - MARGIN.bottom;
+  const availW = width - 2 * margin.side;
+  const availH = height - margin.top - margin.bottom;
   const scale = Math.min(availW / (maxX - minX), availH / (maxY - minY), MAX_SCALE);
-  const offsetX = MARGIN.side + (availW - (maxX - minX) * scale) / 2;
-  const offsetY = MARGIN.top + (availH - (maxY - minY) * scale) / 2;
+  const offsetX = margin.side + (availW - (maxX - minX) * scale) / 2;
+  const offsetY = margin.top + (availH - (maxY - minY) * scale) / 2;
   const pt = (p: Point): Point => ({
     x: round(offsetX + (p.x - minX) * scale),
     y: round(offsetY + (p.y - minY) * scale),
@@ -267,6 +312,7 @@ export async function buildScene(spec: Spec): Promise<Scene> {
   return {
     width,
     height,
+    captionBottom,
     fps,
     theme: spec.theme,
     scale: round(scale),

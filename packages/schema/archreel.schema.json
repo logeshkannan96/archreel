@@ -130,6 +130,14 @@
       },
       "additionalProperties": false
     },
+    "direction": {
+      "description": "Which way the diagram flows; defaults to \"down\" on portrait canvases, else \"right\"",
+      "type": "string",
+      "enum": [
+        "right",
+        "down"
+      ]
+    },
     "nodes": {
       "minItems": 1,
       "maxItems": 500,

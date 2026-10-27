@@ -17,6 +17,7 @@ export const ICONS = [
 
 export const FAIL_EFFECTS = ["shake", "flash"] as const;
 export const THEME_NAMES = ["dark", "light"] as const;
+export const DIRECTIONS = ["right", "down"] as const;
 /** Colors a custom theme can override. */
 export const THEME_COLORS = [
   "background",
@@ -188,6 +189,10 @@ export const SpecSchema = z
         fps: z.int().positive().max(MAX_FPS).default(30),
       })
       .default({ width: 1920, height: 1080, fps: 30 }),
+    direction: z.enum(DIRECTIONS).optional().meta({
+      description:
+        'Which way the diagram flows; defaults to "down" on portrait canvases, else "right"',
+    }),
     nodes: z.array(NodeSchema).min(1).max(MAX_NODES),
     groups: z.array(GroupSchema).max(MAX_GROUPS).default([]),
     edges: z.array(EdgeSchema).max(MAX_EDGES).default([]),
