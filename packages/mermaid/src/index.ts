@@ -97,6 +97,7 @@ export function fromMermaid(source: string): MermaidResult {
   const stack: RawGroup[] = [];
   const edges: RawEdge[] = [];
   let sawHeader = false;
+  let down = false;
 
   const mention = (rawId: string, label: string | undefined, cylinder: boolean): void => {
     const node = nodes.get(rawId) ?? { cylinder: false };
@@ -121,12 +122,12 @@ export function fromMermaid(source: string): MermaidResult {
           });
           return { ok: false, issues };
         }
-        const dir = header[1]?.toUpperCase();
-        if (dir !== undefined && dir !== "LR") {
-          warnings.push({
-            line,
-            message: `direction ${dir} is ignored; archreel lays out left to right`,
-          });
+        // Mermaid's default is top to bottom. archreel flows right or down only.
+        const dir = header[1]?.toUpperCase() ?? "TB";
+        down = dir !== "LR" && dir !== "RL";
+        if (dir === "RL" || dir === "BT") {
+          const drawn = down ? "top to bottom" : "left to right";
+          warnings.push({ line, message: `direction ${dir} is drawn ${drawn}` });
         }
         sawHeader = true;
         continue;
@@ -165,7 +166,7 @@ export function fromMermaid(source: string): MermaidResult {
     issues.push({ line: g.line, message: `subgraph "${g.title}" is never closed` });
   if (issues.length > 0) return { ok: false, issues };
 
-  return assemble(nodes, groups, edges, warnings);
+  return assemble(nodes, groups, edges, warnings, down);
 }
 
 /** Splits `a --> b; b --> c` on semicolons outside quotes and brackets. */
@@ -328,6 +329,7 @@ function assemble(
   rawGroups: RawGroup[],
   rawEdges: RawEdge[],
   warnings: MermaidIssue[],
+  down: boolean,
 ): MermaidResult {
   const groupRaw = new Set(rawGroups.map((g) => g.rawId));
   const taken = new Set<string>();
@@ -410,7 +412,14 @@ function assemble(
   // Stage the video: start with the first node, reveal the rest as flows reach them.
   if (steps.length > 0) steps.unshift({ reveal: [first] });
 
-  const spec: SpecInput = { version: 1, nodes, ...(groups.length ? { groups } : {}), edges, steps };
+  const spec: SpecInput = {
+    version: 1,
+    ...(down ? { direction: "down" } : {}),
+    nodes,
+    ...(groups.length ? { groups } : {}),
+    edges,
+    steps,
+  };
   const result = validateSpec(spec);
   if (!result.ok) {
     return {

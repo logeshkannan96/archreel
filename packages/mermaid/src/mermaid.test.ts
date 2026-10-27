@@ -121,6 +121,18 @@ flowchart LR
     ]);
   });
 
+  it.each([
+    ["flowchart LR", undefined, []],
+    ["flowchart TD", "down", []],
+    ["graph", "down", []],
+    ["flowchart BT", "down", ["1: direction BT is drawn top to bottom"]],
+    ["flowchart RL", undefined, ["1: direction RL is drawn left to right"]],
+  ])("maps %s to direction %s", (header, direction, warnings) => {
+    const r = ok(fromMermaid(`${header}\na --> b`));
+    expect(r.spec.direction).toBe(direction);
+    expect(r.warnings.map((w) => `${w.line}: ${w.message}`)).toEqual(warnings);
+  });
+
   it("expands chains and & groups", () => {
     const r = chart("a --> b & c --> d; d --> a");
     expect(r.spec.edges?.map((e) => `${e.from}->${e.to}`)).toEqual([
@@ -166,7 +178,6 @@ flowchart LR
   style b fill:#f9f`),
     );
     expect(r.warnings.map((w) => `${w.line}: ${w.message}`)).toEqual([
-      "1: direction TD is ignored; archreel lays out left to right",
       "3: nested subgraphs are drawn side by side, not inside each other",
       '9: "style" lines are ignored; use a theme to style the video',
       '2: subgraph "outer" has no nodes of its own; skipped',
