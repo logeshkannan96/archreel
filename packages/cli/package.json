@@ -2,7 +2,25 @@
   "name": "archreel",
   "version": "0.0.0",
   "description": "Turn architecture specs into animated system-design videos",
+  "keywords": [
+    "architecture",
+    "system-design",
+    "diagram",
+    "video",
+    "animation",
+    "remotion",
+    "cli"
+  ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/logeshkannan96/archreel.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/logeshkannan96/archreel#readme",
+  "bugs": {
+    "url": "https://github.com/logeshkannan96/archreel/issues"
+  },
   "type": "module",
   "bin": {
     "archreel": "./dist/bin.js"
@@ -11,6 +29,16 @@
     "dist",
     "!dist/**/*.test.*"
   ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "prepack": "cp ../../LICENSE LICENSE && cp ../../README.md README.md"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "dependencies": {
     "@archreel/layout": "workspace:*",
     "@archreel/mermaid": "workspace:*",

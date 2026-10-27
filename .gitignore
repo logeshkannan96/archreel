@@ -5,3 +5,5 @@ out/
 .DS_Store
 .claude/agent-memory/
 .claude/skills/
+packages/*/LICENSE
+packages/cli/README.md
