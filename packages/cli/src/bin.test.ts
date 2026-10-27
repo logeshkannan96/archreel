@@ -36,6 +36,20 @@ describe("archreel validate", () => {
     expect(r.stderr).toContain("✗ examples/invalid/typo.yaml — 4 problems");
   });
 
+  it("embeds declared icon files and reports unreadable ones at their key", async () => {
+    expect((await run("validate", "examples/custom-icons.yaml")).code).toBe(0);
+    const dir = mkdtempSync(join(tmpdir(), "archreel-icons-"));
+    writeFileSync(join(dir, "fake.png"), "not a png");
+    writeFileSync(
+      join(dir, "s.yaml"),
+      "version: 1\nicons: { a: missing.svg, b: fake.png }\nnodes:\n  - { id: n, icon: a }\n",
+    );
+    const r = await run("validate", join(dir, "s.yaml"));
+    expect(r.code).toBe(1);
+    expect(r.stderr).toContain("s.yaml icons.a: cannot read missing.svg (ENOENT)");
+    expect(r.stderr).toContain("s.yaml icons.b: fake.png is not a valid PNG file");
+  });
+
   it("exits 1 for a missing file", async () => {
     const r = await run("validate", "nope.yaml");
     expect(r.code).toBe(1);

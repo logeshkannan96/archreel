@@ -53,7 +53,7 @@ jobs:
       - run: pnpm test:visual
       - name: Render examples
         run: |
-          for name in url-shortener rate-limiter kafka-fanout url-shortener-shorts; do
+          for name in url-shortener rate-limiter kafka-fanout url-shortener-shorts custom-icons; do
             node packages/cli/dist/bin.js render "examples/$name.yaml" -o "out/$name.gif"
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

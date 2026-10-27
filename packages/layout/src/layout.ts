@@ -39,6 +39,8 @@ export interface Scene {
   /** Distance from the bottom edge to the caption band, clear of platform UI. */
   captionBottom: number;
   nodeStyle: NodeStyle;
+  /** Image source (URL or data URI) for each declared icon that a node uses. */
+  icons: Record<string, string>;
   fps: number;
   theme: ThemeSpec;
   /** Layout units → canvas pixels; renderers scale text and icons by it. */
@@ -130,8 +132,27 @@ export function nodeWidth(label: string): number {
   return Math.min(NODE_MAX_WIDTH, Math.max(NODE_MIN_WIDTH, textWidth(label) + NODE_PADDING_X));
 }
 
-export async function buildScene(spec: Spec): Promise<Scene> {
+export interface SceneOptions {
+  /**
+   * Where to load each icon declared under `spec.icons`: a URL (e.g. Remotion's
+   * `staticFile(path)`) or a data URI. The CLI embeds the files as data URIs.
+   */
+  icons?: Record<string, string>;
+}
+
+export async function buildScene(spec: Spec, options: SceneOptions = {}): Promise<Scene> {
   const { width, height, fps } = spec.canvas;
+  const icons: Record<string, string> = {};
+  for (const name of new Set(spec.nodes.map((n) => n.icon))) {
+    if (name === undefined || spec.icons?.[name] === undefined) continue;
+    const src = options.icons?.[name];
+    if (src === undefined) {
+      throw new Error(
+        `icons.${name}: no image source — pass buildScene(spec, { icons: { "${name}": url } })`,
+      );
+    }
+    icons[name] = src;
+  }
   const timeline = buildTimeline(spec, fps);
   const direction = spec.direction ?? (height > width ? "down" : "right");
   const { margin, captionBottom } = safeArea(width, height);
@@ -355,6 +376,7 @@ export async function buildScene(spec: Spec): Promise<Scene> {
     height,
     captionBottom,
     nodeStyle,
+    icons,
     fps,
     theme: spec.theme,
     scale: round(scale),

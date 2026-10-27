@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
 import { parseArgs } from "node:util";
-import { buildScene } from "@archreel/layout";
-import { log, readSpec } from "./shared.js";
+import { log, readIcons, readScene, readSpec } from "./shared.js";
 
 const USAGE = `Usage: archreel <command> [options]
 
@@ -28,7 +27,7 @@ async function validate(files: string[]): Promise<number> {
   let failed = 0;
   for (const file of files) {
     const spec = await readSpec(file);
-    if (spec) {
+    if (spec && (await readIcons(file, spec))) {
       const { nodes, edges, steps } = spec;
       process.stdout.write(
         `✓ ${file} — ${nodes.length} nodes, ${edges.length} edges, ${steps.length} steps\n`,
@@ -50,12 +49,12 @@ async function render(
   if (parsedScale !== undefined && !(parsedScale > 0 && parsedScale <= 4)) {
     return usage(`render: --scale must be a number in (0, 4], got "${scale ?? ""}"`);
   }
-  const spec = await readSpec(file);
-  if (!spec) return EXIT_INVALID;
+  const scene = await readScene(file);
+  if (!scene) return EXIT_INVALID;
   const target = out ?? file.replace(/\.(ya?ml|json)$/i, "") + ".mp4";
   // Loaded lazily: Remotion's renderer is heavy and `validate` doesn't need it.
   const { renderScene } = await import("./render.js");
-  await renderScene(await buildScene(spec), { out: target, scale: parsedScale, log });
+  await renderScene(scene, { out: target, scale: parsedScale, log });
   log(`✓ wrote ${target}`);
   return 0;
 }

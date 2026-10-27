@@ -2,14 +2,14 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildScene, type Scene } from "@archreel/layout";
-import { loadSpec } from "@archreel/schema";
+import type { Scene } from "@archreel/layout";
 import { bundle } from "@remotion/bundler";
 import { renderStill, selectComposition } from "@remotion/renderer";
 import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 import { renderFrames } from "./render.js";
+import { readScene } from "./shared.js";
 
 // Run with `pnpm test:visual`. Goldens are per platform because font
 // rasterization differs between macOS and Linux. A missing golden is written
@@ -24,9 +24,9 @@ const MAX_DIFF_RATIO = 0.002;
 const TIMEOUT_MS = 180_000;
 
 async function scene(name: string): Promise<Scene> {
-  const result = loadSpec(readFileSync(join(root, "examples", `${name}.yaml`), "utf8"));
-  if (!result.ok) throw new Error(`${name} is invalid`);
-  return buildScene(result.spec);
+  const result = await readScene(join(root, "examples", `${name}.yaml`));
+  if (!result) throw new Error(`${name} is invalid`);
+  return result;
 }
 
 /** One frame in the middle of each interesting step's action. */
@@ -66,7 +66,7 @@ function matchGolden(actualFile: string, goldenName: string): string | undefined
 describe.skipIf(!process.env.ARCHREEL_VISUAL)("visual regression", () => {
   const tmp = mkdtempSync(join(tmpdir(), "archreel-visual-"));
 
-  it.for(["url-shortener", "rate-limiter", "kafka-fanout", "url-shortener-shorts"])(
+  it.for(["url-shortener", "rate-limiter", "kafka-fanout", "url-shortener-shorts", "custom-icons"])(
     "%s key frames match goldens",
     { timeout: TIMEOUT_MS },
     async (name, ctx) => {

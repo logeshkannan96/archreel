@@ -69,6 +69,18 @@ describe("valid specs", () => {
     expect(problems({ steps: [{ flow: { from: "pg", to: "api" } }] })).toEqual([]);
   });
 
+  it("accepts declared icons, including ones that replace a built-in", () => {
+    const icons = { grafana: "icons/grafana.svg", postgres: "icons/pg.png" };
+    const nodes = [
+      { id: "mon", icon: "grafana" },
+      { id: "db", icon: "postgres" },
+    ];
+    expect(validateSpec({ version: 1, icons, nodes })).toMatchObject({
+      ok: true,
+      spec: { icons },
+    });
+  });
+
   it("accepts a custom theme", () => {
     const theme = { base: "light", colors: { packet: "#22d3ee", background: "#00000000" } };
     expect(validateSpec({ ...base, theme })).toMatchObject({ ok: true, spec: { theme } });
@@ -275,6 +287,31 @@ describe("invalid specs", () => {
       ['theme.colors.background: must be a hex color like "#38bdf8" or "#38bdf880"'],
     ],
     [
+      "unknown icon, suggested from declared icons",
+      { icons: { grafana: "grafana.svg" }, nodes: [{ id: "a", icon: "grafna" }], edges: [] },
+      ['nodes[0].icon: expected a built-in icon, got "grafna" — did you mean "grafana"?'],
+    ],
+    [
+      "unknown icon with nothing close",
+      { nodes: [{ id: "a", icon: "zzzzzz" }], edges: [] },
+      [
+        'nodes[0].icon: expected a built-in icon, got "zzzzzz" (built-in icons: user, server, database, cache, queue, aws/alb, aws/s3, k8s/pod, redis, postgres, kafka; or declare your own under icons:)',
+      ],
+    ],
+    [
+      "icon files must stay in the spec's folder and be svg or png",
+      {
+        icons: { a: "../logo.svg", b: "/etc/logo.png", c: "logo.gif" },
+        nodes: [{ id: "n", icon: "a" }],
+        edges: [],
+      },
+      [
+        `icons.a: must not contain ".." (icon files must be inside the spec's folder)`,
+        "icons.b: must be a relative path",
+        "icons.c: must be an .svg or .png file",
+      ],
+    ],
+    [
       "unknown node style",
       { theme: { nodes: "box" } },
       ['theme.nodes: expected one of "icon", "card", got "box"'],
@@ -327,8 +364,8 @@ describe("invalid specs", () => {
         steps: [{ higlight: { nodes: ["pg"] } }, { flow: { from: "api", to: "postgres" } }],
       }),
     ).toEqual([
-      'nodes[0].icon: expected a built-in icon, got "sever" — did you mean "server"?',
       'steps[0]: unknown step; expected one of reveal, flow, highlight, fail, pause — did you mean "highlight"?',
+      'nodes[0].icon: expected a built-in icon, got "sever" — did you mean "server"?',
       'steps[1].flow.to: unknown node "postgres"',
     ]);
   });

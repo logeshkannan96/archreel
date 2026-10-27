@@ -1,5 +1,5 @@
 import type { Point, SceneEdge, SceneGroup, SceneNode } from "@archreel/layout";
-import { Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { Easing, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Icon } from "./icons.js";
 import { ACCENTS, BADGES, DEFAULT_ACCENT, DEFAULT_BADGE, type Theme } from "./theme.js";
 
@@ -31,6 +31,8 @@ function useAppear(appear: number): number {
 
 interface NodeProps {
   node: SceneNode;
+  /** Image for a declared icon (URL or data URI); otherwise the built-in glyph is drawn. */
+  src?: string | undefined;
   appear: number;
   effects: readonly Effect[];
   theme: Theme;
@@ -60,23 +62,60 @@ function useNodeEffects(effects: readonly Effect[], scale: number) {
 }
 
 /** The icon is the node: a colored badge with a white glyph, label underneath. */
-export function IconNode({ node, appear, effects, theme, scale }: NodeProps) {
+export function IconNode({ node, src, appear, effects, theme, scale }: NodeProps) {
   const shown = useAppear(appear);
   const { fail, glow, shaking, shakeX, pulse } = useNodeEffects(effects, scale);
   const badge = BADGES[node.icon ?? ""] ?? DEFAULT_BADGE;
-  return (
+  const label = (
     <div
       style={{
         position: "absolute",
-        left: node.x,
-        top: node.y,
-        width: node.width,
-        height: node.height,
-        opacity: shown,
-        scale: interpolate(shown, [0, 1], [0.7, 1]),
-        translate: `${shakeX}px 0px`,
+        top: node.height + 10 * scale,
+        left: "50%",
+        translate: "-50% 0",
+        whiteSpace: "nowrap",
+        fontSize: 18 * scale,
+        fontWeight: 500,
+        color: fail > 0.5 ? theme.danger : theme.text,
       }}
     >
+      {node.label}
+    </div>
+  );
+  const frame = {
+    position: "absolute",
+    left: node.x,
+    top: node.y,
+    width: node.width,
+    height: node.height,
+    opacity: shown,
+    scale: interpolate(shown, [0, 1], [0.7, 1]),
+    translate: `${shakeX}px 0px`,
+  } as const;
+
+  if (src !== undefined) {
+    // A user's own icon is drawn as-is; effects follow its shape via drop-shadow.
+    const shadows = [
+      glow > 0 ? `drop-shadow(0 0 ${14 * scale * glow * pulse}px ${theme.highlight})` : "",
+      fail > 0 ? `drop-shadow(0 0 ${14 * scale * fail}px ${theme.danger})` : "",
+    ].filter(Boolean);
+    return (
+      <div style={frame}>
+        <Img
+          src={src}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            filter: shadows.length > 0 ? shadows.join(" ") : "none",
+          }}
+        />
+        {label}
+      </div>
+    );
+  }
+  return (
+    <div style={frame}>
       <div
         style={{
           position: "absolute",
@@ -114,25 +153,12 @@ export function IconNode({ node, appear, effects, theme, scale }: NodeProps) {
           />
         </div>
       </div>
-      <div
-        style={{
-          position: "absolute",
-          top: node.height + 10 * scale,
-          left: "50%",
-          translate: "-50% 0",
-          whiteSpace: "nowrap",
-          fontSize: 18 * scale,
-          fontWeight: 500,
-          color: fail > 0.5 ? theme.danger : theme.text,
-        }}
-      >
-        {node.label}
-      </div>
+      {label}
     </div>
   );
 }
 
-export function Node({ node, appear, effects, theme, scale }: NodeProps) {
+export function Node({ node, src, appear, effects, theme, scale }: NodeProps) {
   const shown = useAppear(appear);
   const accent = ACCENTS[node.icon ?? ""] ?? DEFAULT_ACCENT;
   const { fail, glow, shaking, shakeX, pulse } = useNodeEffects(effects, scale);
@@ -175,7 +201,11 @@ export function Node({ node, appear, effects, theme, scale }: NodeProps) {
           opacity: fail * 0.18 * (shaking ? 1 : pulse),
         }}
       />
-      <Icon name={node.icon ?? "server"} size={44 * scale} color={accent} />
+      {src === undefined ? (
+        <Icon name={node.icon ?? "server"} size={44 * scale} color={accent} />
+      ) : (
+        <Img src={src} style={{ width: 44 * scale, height: 44 * scale, objectFit: "contain" }} />
+      )}
       <div
         style={{
           fontSize: 20 * scale,

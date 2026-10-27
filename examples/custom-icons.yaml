@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=../packages/schema/archreel.schema.json
+# Your own icons: declare SVG/PNG files next to the spec, then use their names.
+# Reusing a built-in name (e.g. postgres) replaces that glyph everywhere.
+version: 1
+
+icons:
+  dashboards: icons/gauge.svg
+  metrics: icons/bars.svg
+
+nodes:
+  - { id: svc, label: Checkout Service, icon: k8s/pod, group: cluster }
+  - { id: worker, label: Payment Worker, icon: k8s/pod, group: cluster }
+  - { id: prom, label: Metrics, icon: metrics }
+  - { id: grafana, label: Dashboards, icon: dashboards }
+  - { id: oncall, label: On-call, icon: user }
+
+groups:
+  - { id: cluster, label: Pod cluster }
+
+edges:
+  - { from: svc, to: prom, label: scrape }
+  - { from: worker, to: prom }
+  - { from: prom, to: grafana }
+  - { from: grafana, to: oncall, label: alert }
+
+steps:
+  - reveal: [cluster]
+  - flow: { from: svc, to: prom, label: /metrics }
+  - flow: { from: worker, to: prom, label: /metrics }
+  - flow: { from: prom, to: grafana, label: p99 latency }
+  - fail: { node: worker, effect: flash, label: error rate 12% }
+  - highlight: { nodes: [grafana], caption: Dashboards turn red before customers notice }
+  - flow: { from: grafana, to: oncall, label: page }

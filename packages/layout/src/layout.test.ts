@@ -45,6 +45,21 @@ describe("layout", () => {
     expect(pg?.y).toBeGreaterThan(labelBottom);
   });
 
+  it("carries image sources only for declared icons that nodes use", async () => {
+    const s = spec({
+      icons: { metrics: "bars.svg", unused: "x.svg" },
+      nodes: [
+        { id: "a", icon: "metrics" },
+        { id: "b", icon: "server" },
+      ],
+    });
+    const scene = await buildScene(s, { icons: { metrics: "data:x", unused: "data:y" } });
+    expect(scene.icons).toEqual({ metrics: "data:x" });
+    await expect(buildScene(s)).rejects.toThrow(
+      'icons.metrics: no image source — pass buildScene(spec, { icons: { "metrics": url } })',
+    );
+  });
+
   it.each(EXAMPLES)("%s is deterministic", async (name) => {
     expect(await buildScene(example(name))).toEqual(await buildScene(example(name)));
   });

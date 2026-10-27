@@ -13,25 +13,32 @@ import {
   type Effect,
 } from "./components.js";
 import "./fonts.js";
-import { resolveTheme } from "./theme.js";
+import { resolveTheme, type Theme } from "./theme.js";
 
 export interface ArchreelProps extends Record<string, unknown> {
   /** From `buildScene(spec)`; plain JSON, so it can travel as input props. */
   scene: Scene;
+  /** Host overrides for the spec's colors, so the diagram matches the surrounding video. */
+  theme?: Partial<Theme> | undefined;
+  /**
+   * Host font for all text (default: the bundled Inter). Load it in the host. Layout
+   * sizes text for Inter, so a much wider font can crowd labels.
+   */
+  fontFamily?: string | undefined;
 }
 
 /**
  * The animated diagram, `scene.width` × `scene.height` px, starting at frame 0.
  * Embed it in any composition; wrap it in a `<Sequence>` to start it later.
  */
-export function Archreel({ scene }: ArchreelProps) {
+export function Archreel({ scene, theme: overrides, fontFamily }: ArchreelProps) {
   const { fps } = useVideoConfig();
   if (fps !== scene.fps) {
     throw new Error(
       `archreel: the scene was built for ${scene.fps} fps but this composition runs at ${fps} fps — set canvas.fps: ${fps} in the spec`,
     );
   }
-  const theme = resolveTheme(scene.theme);
+  const theme: Theme = { ...resolveTheme(scene.theme), ...overrides };
   const NodeView = scene.nodeStyle === "icon" ? IconNode : Node;
   const { scale } = scene;
 
@@ -64,7 +71,7 @@ export function Archreel({ scene }: ArchreelProps) {
         height: scene.height,
         overflow: "hidden",
         background: theme.background,
-        fontFamily: "Inter, sans-serif",
+        fontFamily: fontFamily ?? "Inter, sans-serif",
       }}
     >
       {scene.groups.map((g) => (
@@ -97,6 +104,7 @@ export function Archreel({ scene }: ArchreelProps) {
         <NodeView
           key={n.id}
           node={n}
+          src={n.icon === undefined ? undefined : scene.icons[n.icon]}
           appear={scene.appear[n.id] ?? 0}
           effects={effects.get(n.id) ?? []}
           theme={theme}

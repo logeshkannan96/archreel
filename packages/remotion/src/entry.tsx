@@ -9,6 +9,7 @@ const EMPTY_SCENE: Scene = {
   height: 1080,
   captionBottom: 60,
   nodeStyle: "icon",
+  icons: {},
   fps: 30,
   theme: "light",
   scale: 1,

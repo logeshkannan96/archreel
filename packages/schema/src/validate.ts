@@ -47,7 +47,10 @@ function neutralize(input: unknown, issues: readonly Issue[]): unknown {
   for (const { path } of issues) {
     const [section, index, field] = path;
     if (section === "version") copy.version = 1;
-    else if (section === "theme" || section === "canvas" || section === "$schema") {
+    // A placeholder keeps nodes that use a broken icon from also reporting it as unknown.
+    else if (section === "icons" && isRecord(copy.icons) && typeof index === "string") {
+      copy.icons[index] = "icon.svg";
+    } else if (section === "theme" || section === "canvas" || section === "$schema") {
       Reflect.deleteProperty(copy, section);
     } else {
       const list = typeof section === "string" ? copy[section] : undefined;
@@ -91,6 +94,9 @@ function toIssues(issue: ZodIssue, root: unknown, base: IssuePath): Issue[] {
       // Steps are a union; report errors from the branch the user clearly meant.
       if (path.length === 2 && path[0] === "steps") return stepIssues(value, path);
       if (path.length === 1 && path[0] === "theme") return themeIssues(value);
+      if (path.at(-1) === "icon") {
+        return [{ path, message: `expected an icon name like "server", got ${describe(value)}` }];
+      }
       if (path.at(-1) === "duration" || path.at(-1) === "pause") {
         return [{ path, message: `${DURATION_HINT}, got ${describe(value)}` }];
       }
@@ -108,16 +114,10 @@ function toIssues(issue: ZodIssue, root: unknown, base: IssuePath): Issue[] {
 
     case "invalid_value": {
       const allowed = issue.values.map((v) => JSON.stringify(v));
-      const isIcon = path.at(-1) === "icon";
       const hint =
         typeof value === "string" ? didYouMean(value, issue.values.map(String)) : undefined;
-      const expected = isIcon
-        ? "a built-in icon"
-        : allowed.length === 1
-          ? allowed[0]
-          : `one of ${allowed.join(", ")}`;
-      const tail = hint ?? (isIcon ? ` (built-in icons: ${ICONS.join(", ")})` : "");
-      return [{ path, message: `expected ${expected}, got ${describe(value)}${tail}` }];
+      const expected = allowed.length === 1 ? allowed[0] : `one of ${allowed.join(", ")}`;
+      return [{ path, message: `expected ${expected}, got ${describe(value)}${hint ?? ""}` }];
     }
 
     case "too_small":
@@ -273,7 +273,17 @@ function checkReferences(spec: Spec): Issue[] {
   spec.groups.forEach((g, i) => {
     claim(g.id, ["groups", i, "id"]);
   });
+  const icons = new Set<string>([...ICONS, ...Object.keys(spec.icons ?? {})]);
   spec.nodes.forEach((n, i) => {
+    if (n.icon !== undefined && !icons.has(n.icon)) {
+      const hint =
+        (suggestionBudget-- > 0 ? didYouMean(n.icon, [...icons]) : undefined) ??
+        ` (built-in icons: ${ICONS.join(", ")}; or declare your own under icons:)`;
+      issues.push({
+        path: ["nodes", i, "icon"],
+        message: `expected a built-in icon, got ${describe(n.icon)}${hint}`,
+      });
+    }
     claim(n.id, ["nodes", i, "id"]);
     nodeIds.add(n.id);
     nodeAliases.set(n.id.toLowerCase(), n.id);

@@ -49,6 +49,8 @@ const MAX_NODES = 500;
 const MAX_GROUPS = 100;
 const MAX_EDGES = 2000;
 const MAX_STEPS = 2000;
+const MAX_ICONS = 100;
+const MAX_PATH_LENGTH = 500;
 export const MAX_STEP_MS = 60_000;
 
 const Id = z
@@ -100,6 +102,24 @@ export const CustomTheme = z.strictObject({
   }),
 });
 
+/** A built-in icon, or a name declared under `icons:`. */
+const IconName = z
+  .string()
+  .max(MAX_ID_LENGTH)
+  .regex(/^[A-Za-z][A-Za-z0-9_/-]*$/, 'must be an icon name like "server" or "aws/alb"');
+
+/** A file next to the spec. Must stay inside the spec's folder. */
+const IconFile = z
+  .string()
+  .min(1)
+  .max(MAX_PATH_LENGTH)
+  .refine((p) => !/^(?:[\\/]|[A-Za-z]:)/.test(p), "must be a relative path")
+  .refine(
+    (p) => !p.split(/[\\/]/).includes(".."),
+    'must not contain ".." (icon files must be inside the spec\'s folder)',
+  )
+  .refine((p) => /\.(svg|png)$/i.test(p), "must be an .svg or .png file");
+
 const Dimension = z
   .int()
   .positive()
@@ -109,7 +129,13 @@ const Dimension = z
 export const NodeSchema = z.strictObject({
   id: Id,
   label: Text.optional().meta({ description: "Display text; defaults to id" }),
-  icon: z.enum(ICONS).optional(),
+  // The enum branch is there so editors autocomplete built-in names.
+  icon: z
+    .union([z.enum(ICONS), IconName])
+    .optional()
+    .meta({
+      description: "A built-in icon or one declared under icons:",
+    }),
   group: Id.optional().meta({ description: "Id of the group this node sits in" }),
   position: z
     .strictObject({ x: z.number(), y: z.number() })
@@ -197,6 +223,14 @@ export const SpecSchema = z
       description:
         'Which way the diagram flows; defaults to "down" on portrait canvases, else "right"',
     }),
+    icons: z
+      .record(IconName, IconFile)
+      .refine((m) => Object.keys(m).length <= MAX_ICONS, `at most ${MAX_ICONS} icons`)
+      .optional()
+      .meta({
+        description:
+          "Your own icons: name → .svg/.png path next to the spec. Reusing a built-in name replaces it.",
+      }),
     nodes: z.array(NodeSchema).min(1).max(MAX_NODES),
     groups: z.array(GroupSchema).max(MAX_GROUPS).default([]),
     edges: z.array(EdgeSchema).max(MAX_EDGES).default([]),
