@@ -152,24 +152,47 @@ export function Group({
         border: `${2 * scale}px dashed ${glow > 0 ? accent : theme.groupBorder}`,
         boxShadow: glow > 0 ? `0 0 ${40 * scale * glow}px ${accent}` : "none",
       }}
+    />
+  );
+}
+
+/**
+ * A group's name as a small tag. Drawn after the edges, on a solid background,
+ * so edges entering the group (from above, when flowing down) pass behind it.
+ */
+export function GroupLabel({
+  group,
+  appear,
+  theme,
+  scale,
+}: {
+  group: SceneGroup;
+  appear: number;
+  theme: Theme;
+  scale: number;
+}) {
+  const shown = useAppear(appear);
+  if (group.label === undefined) return null;
+  const pad = { x: 8 * scale, y: 3 * scale };
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: group.x + 20 * scale - pad.x,
+        top: group.y + 14 * scale - pad.y,
+        padding: `${pad.y}px ${pad.x}px`,
+        borderRadius: 6 * scale,
+        background: theme.node,
+        opacity: shown,
+        fontSize: 17 * scale,
+        fontWeight: 700,
+        letterSpacing: 1.5 * scale,
+        textTransform: "uppercase",
+        whiteSpace: "nowrap",
+        color: theme.mutedText,
+      }}
     >
-      {group.label === undefined ? null : (
-        <div
-          style={{
-            position: "absolute",
-            left: 20 * scale,
-            top: 14 * scale,
-            fontSize: 17 * scale,
-            fontWeight: 700,
-            letterSpacing: 1.5 * scale,
-            textTransform: "uppercase",
-            whiteSpace: "nowrap",
-            color: theme.mutedText,
-          }}
-        >
-          {group.label}
-        </div>
-      )}
+      {group.label}
     </div>
   );
 }
@@ -332,9 +355,20 @@ export function Callout({
 }
 
 /** Caption in the band below the diagram. Frame 0 is the start of the step. */
-export function Caption({ text, frames, theme }: { text: string; frames: number; theme: Theme }) {
+/** Bottom-centered text band, sized by the diagram (not the host composition). */
+export function Caption({
+  text,
+  frames,
+  theme,
+  area,
+}: {
+  text: string;
+  frames: number;
+  theme: Theme;
+  area: { width: number; height: number; captionBottom: number };
+}) {
   const frame = useCurrentFrame();
-  const { width, height } = useVideoConfig();
+  const { width, height, captionBottom } = area;
   const shown = envelope(frame, 0, frames, 8);
   const unit = Math.min(width, height) / 1080;
   return (
@@ -342,7 +376,7 @@ export function Caption({ text, frames, theme }: { text: string; frames: number;
       style={{
         position: "absolute",
         left: "50%",
-        bottom: 60 * unit,
+        bottom: captionBottom,
         translate: `-50% ${(1 - shown) * 30}px`,
         opacity: shown,
         maxWidth: width * 0.8,

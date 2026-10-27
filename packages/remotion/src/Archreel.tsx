@@ -6,6 +6,7 @@ import {
   Edge,
   EdgeArrowDefs,
   Group,
+  GroupLabel,
   Node,
   Packet,
   type Effect,
@@ -80,6 +81,15 @@ export function Archreel({ scene }: ArchreelProps) {
           <Edge key={e.id} edge={e} appear={scene.appear[e.id] ?? 0} theme={theme} scale={scale} />
         ))}
       </svg>
+      {scene.groups.map((g) => (
+        <GroupLabel
+          key={g.id}
+          group={g}
+          appear={scene.appear[g.id] ?? 0}
+          theme={theme}
+          scale={scale}
+        />
+      ))}
       {scene.nodes.map((n) => (
         <Node
           key={n.id}
@@ -124,7 +134,7 @@ export function Archreel({ scene }: ArchreelProps) {
         if (s.kind === "highlight" && s.caption !== undefined) {
           return (
             <Sequence key={i} from={s.actionStart} durationInFrames={frames} layout="none">
-              <Caption text={s.caption} frames={frames} theme={theme} />
+              <Caption text={s.caption} frames={frames} theme={theme} area={scene} />
             </Sequence>
           );
         }

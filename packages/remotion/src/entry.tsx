@@ -7,6 +7,7 @@ import { COMPOSITION_ID } from "./id.js";
 const EMPTY_SCENE: Scene = {
   width: 1920,
   height: 1080,
+  captionBottom: 60,
   fps: 30,
   theme: "dark",
   scale: 1,
