@@ -1,4 +1,5 @@
-import type { Spec } from "@archreel/schema";
+import type { Caption, Spec, ThemeSpec } from "@archreel/schema";
+import { SceneError, resolveVoiceover } from "./anchors.js";
 import elkModule, { type ElkExtendedEdge, type ElkNode } from "elkjs/lib/elk.bundled.js";
 import { buildTimeline, edgeId, type TimedStep } from "./timeline.js";
 
@@ -34,7 +35,9 @@ export interface Scene {
   width: number;
   height: number;
   fps: number;
-  theme: "dark" | "light";
+  theme: ThemeSpec;
+  /** Narration, as a URL or a `staticFile()` name the renderer can load. */
+  audio?: string;
   /** Layout units → canvas pixels; renderers scale text and icons by it. */
   scale: number;
   durationInFrames: number;
@@ -94,8 +97,23 @@ export function nodeWidth(label: string): number {
   return Math.min(NODE_MAX_WIDTH, Math.max(NODE_MIN_WIDTH, textWidth(label) + NODE_PADDING_X));
 }
 
-export async function buildScene(spec: Spec): Promise<Scene> {
+export interface SceneOptions {
+  /** Word timestamps for `spec.voiceover`; required if any step has an `at`. */
+  captions?: readonly Caption[] | undefined;
+  /** Where the renderer finds the narration audio. */
+  audio?: string | undefined;
+}
+
+export async function buildScene(spec: Spec, options: SceneOptions = {}): Promise<Scene> {
   const { width, height, fps } = spec.canvas;
+  const { captions, audio } = options;
+  if (captions === undefined && spec.steps.some((s) => s.at !== undefined)) {
+    throw new SceneError([
+      { path: ["voiceover"], message: "captions are required to resolve the steps' `at` phrases" },
+    ]);
+  }
+  // Before layout, so anchor mistakes fail fast.
+  const timeline = buildTimeline(spec, fps, captions && resolveVoiceover(spec, captions));
   const elk = new ELK();
 
   const specIndex = new Map(spec.nodes.map((n, i) => [n.id, i]));
@@ -263,12 +281,12 @@ export async function buildScene(spec: Spec): Promise<Scene> {
     };
   });
 
-  const timeline = buildTimeline(spec, fps);
   return {
     width,
     height,
     fps,
     theme: spec.theme,
+    ...(audio === undefined ? {} : { audio }),
     scale: round(scale),
     durationInFrames: timeline.durationInFrames,
     nodes,
