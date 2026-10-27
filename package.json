@@ -1,0 +1,29 @@
+{
+  "name": "archreel-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "build": "tsc -b packages/schema packages/cli",
+    "typecheck": "tsc -b packages/schema packages/cli",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "test": "pnpm build && vitest run",
+    "schema:json": "pnpm build && node packages/schema/scripts/emit-json-schema.js",
+    "validate:examples": "pnpm build && node packages/cli/dist/bin.js validate examples/url-shortener.yaml examples/rate-limiter.yaml examples/kafka-fanout.yaml"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "26.6.5",
+    "eslint": "10.13.0",
+    "eslint-config-prettier": "10.1.8",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}
