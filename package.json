@@ -15,9 +15,12 @@
     "test": "pnpm build && vitest run --exclude '**/visual.test.ts'",
     "schema:json": "pnpm build && node packages/schema/scripts/emit-json-schema.js",
     "validate:examples": "pnpm build && node packages/cli/dist/bin.js validate examples/url-shortener.yaml examples/rate-limiter.yaml examples/kafka-fanout.yaml examples/url-shortener-shorts.yaml",
-    "test:visual": "pnpm build && ARCHREEL_VISUAL=1 vitest run packages/cli/src/visual.test.ts"
+    "test:visual": "pnpm build && ARCHREEL_VISUAL=1 vitest run packages/cli/src/visual.test.ts",
+    "changeset": "changeset",
+    "release": "pnpm clean && pnpm build && changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.3",
     "@eslint/js": "10.0.1",
     "@types/node": "26.6.5",
     "eslint": "10.13.0",
