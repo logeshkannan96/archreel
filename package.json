@@ -7,8 +7,8 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "build": "tsc -b packages/schema packages/layout packages/remotion packages/cli",
-    "typecheck": "tsc -b packages/schema packages/layout packages/remotion packages/cli",
+    "build": "tsc -b packages/schema packages/layout packages/mermaid packages/remotion packages/cli",
+    "typecheck": "tsc -b packages/schema packages/layout packages/mermaid packages/remotion packages/cli",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "test": "pnpm build && vitest run --exclude '**/visual.test.ts'",
