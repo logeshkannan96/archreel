@@ -14,3 +14,6 @@
 - Re-render example GIFs after visual changes: `node packages/cli/dist/bin.js render examples/<n>.yaml -o examples/<n>.gif`.
 - Mermaid import is a hand-written parser for the flowchart subset (`packages/mermaid`); unsupported
   syntax must fail with its line, styling lines warn. Keep it dependency-free.
+- `@archreel/remotion` is embedded by host Remotion projects (`examples/embed`): keep remotion/react
+  as peer deps, never import font assets from Node-side code (use `@archreel/remotion/id`), and
+  run `pnpm clean && pnpm build` before packing — `tsc -b` leaves renamed files in dist.
