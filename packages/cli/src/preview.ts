@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { unwatchFile, watchFile } from "node:fs";
-import { copyFile, mkdtemp, rename, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -16,17 +16,19 @@ export async function preview(file: string, log: (line: string) => void): Promis
   const project = await readProject(file);
   if (!project) return 1;
 
-  const propsFile = join(await mkdtemp(join(tmpdir(), "archreel-")), "props.json");
+  const tmp = await mkdtemp(join(tmpdir(), "archreel-"));
+  const propsFile = join(tmp, "props.json");
   // Studio serves this folder; writeProps copies the narration into it.
-  const publicDir = await mkdtemp(join(tmpdir(), "archreel-public-"));
+  const publicDir = join(tmp, "public");
+  await mkdir(publicDir);
   const writeProps = async ({ scene, audioFile }: Project): Promise<void> => {
     if (audioFile !== undefined && scene.audio !== undefined) {
       await copyFile(audioFile, join(publicDir, scene.audio));
     }
     // Write-then-rename so Studio never reads a half-written file.
-    const tmp = `${propsFile}.tmp`;
-    await writeFile(tmp, JSON.stringify({ scene }));
-    await rename(tmp, propsFile);
+    const partial = `${propsFile}.tmp`;
+    await writeFile(partial, JSON.stringify({ scene }));
+    await rename(partial, propsFile);
   };
   await writeProps(project);
 
@@ -63,9 +65,15 @@ export async function preview(file: string, log: (line: string) => void): Promis
   });
 
   return new Promise((resolve) => {
+    // Pass signals on and wait for Studio, so it isn't orphaned and cleanup below runs.
+    for (const signal of ["SIGINT", "SIGTERM"] as const) {
+      process.on(signal, () => studio.kill(signal));
+    }
     studio.on("exit", (code) => {
       unwatchFile(file);
-      resolve(code ?? 0);
+      void rm(tmp, { recursive: true, force: true }).then(() => {
+        resolve(code ?? 0);
+      });
     });
   });
 }

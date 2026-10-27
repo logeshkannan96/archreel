@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { rm } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { log, publicDirFor, readProject } from "./shared.js";
 
@@ -52,12 +53,12 @@ async function render(
   const target = out ?? file.replace(/\.(ya?ml|json)$/i, "") + ".mp4";
   // Loaded lazily: Remotion's renderer is heavy and `validate` doesn't need it.
   const { renderScene } = await import("./render.js");
-  await renderScene(project.scene, {
-    out: target,
-    scale: parsedScale,
-    publicDir: await publicDirFor(project.audioFile),
-    log,
-  });
+  const publicDir = await publicDirFor(project.audioFile);
+  try {
+    await renderScene(project.scene, { out: target, scale: parsedScale, publicDir, log });
+  } finally {
+    if (publicDir !== undefined) await rm(publicDir, { recursive: true, force: true });
+  }
   log(`✓ wrote ${target}`);
   return 0;
 }
