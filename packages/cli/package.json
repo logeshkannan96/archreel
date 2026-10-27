@@ -12,6 +12,7 @@
     "!dist/**/*.test.*"
   ],
   "dependencies": {
-    "@archreel/schema": "workspace:*"
+    "@archreel/schema": "workspace:*",
+    "@archreel/layout": "workspace:*"
   }
 }

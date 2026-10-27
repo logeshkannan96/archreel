@@ -5,5 +5,12 @@
     "outDir": "dist"
   },
   "include": ["src"],
-  "references": [{ "path": "../schema" }]
+  "references": [
+    {
+      "path": "../schema"
+    },
+    {
+      "path": "../layout"
+    }
+  ]
 }

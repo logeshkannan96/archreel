@@ -1,0 +1,21 @@
+{
+  "name": "@archreel/layout",
+  "version": "0.0.0",
+  "description": "Turns an archreel spec into a positioned, timed scene",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "dependencies": {
+    "@archreel/schema": "workspace:*",
+    "elkjs": "0.12.0"
+  }
+}
