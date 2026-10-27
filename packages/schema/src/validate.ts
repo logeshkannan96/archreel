@@ -4,7 +4,10 @@ import {
   MAX_STEP_MS,
   STEP_KINDS,
   STEP_SCHEMAS,
+  CustomTheme,
   SpecSchema,
+  THEME_COLORS,
+  THEME_NAMES,
   type Spec,
   type StepKind,
 } from "./spec.js";
@@ -44,6 +47,8 @@ function neutralize(input: unknown, issues: readonly Issue[]): unknown {
   for (const { path } of issues) {
     const [section, index, field] = path;
     if (section === "version") copy.version = 1;
+    // Keep a voiceover so steps' `at` aren't also reported as missing one.
+    else if (section === "voiceover") copy.voiceover = { captions: "captions.json" };
     else if (section === "theme" || section === "canvas" || section === "$schema") {
       Reflect.deleteProperty(copy, section);
     } else {
@@ -87,6 +92,7 @@ function toIssues(issue: ZodIssue, root: unknown, base: IssuePath): Issue[] {
     case "invalid_union":
       // Steps are a union; report errors from the branch the user clearly meant.
       if (path.length === 2 && path[0] === "steps") return stepIssues(value, path);
+      if (path.length === 1 && path[0] === "theme") return themeIssues(value);
       if (path.at(-1) === "duration" || path.at(-1) === "pause") {
         return [{ path, message: `${DURATION_HINT}, got ${describe(value)}` }];
       }
@@ -160,11 +166,31 @@ function stepIssues(step: unknown, path: IssuePath): Issue[] {
   return result.success ? [] : result.error.issues.flatMap((i) => toIssues(i, step, path));
 }
 
+function themeIssues(theme: unknown): Issue[] {
+  const path = ["theme"];
+  if (isRecord(theme)) {
+    const result = CustomTheme.safeParse(theme);
+    return result.success ? [] : result.error.issues.flatMap((i) => toIssues(i, theme, path));
+  }
+  const hint =
+    theme === "custom"
+      ? ' — for a custom theme use { base: dark, colors: { packet: "#22d3ee" } }'
+      : typeof theme === "string"
+        ? (didYouMean(theme, THEME_NAMES) ?? "")
+        : "";
+  return [
+    {
+      path,
+      message: `expected "dark", "light", or { base, colors }, got ${describe(theme)}${hint}`,
+    },
+  ];
+}
+
 function unknownKeyMessage(key: string, parent: IssuePath, container: unknown): string {
   const quoted = JSON.stringify(key); // keys are user input; never echo raw control chars
   const owner = parent.at(-1);
-  if (key === "duration" && typeof owner === "string" && isStepKind(owner)) {
-    return `unknown key "duration" in ${owner} — move it up one level, next to "${owner}:"`;
+  if ((key === "duration" || key === "at") && typeof owner === "string" && isStepKind(owner)) {
+    return `unknown key "${key}" in ${owner} — move it up one level, next to "${owner}:"`;
   }
   const kind = isRecord(container) ? STEP_KINDS.find((k) => k in container) : undefined;
   if (parent.length === 2 && parent[0] === "steps" && kind !== undefined) {
@@ -203,6 +229,12 @@ const KNOWN_KEYS = [
     "node",
     "effect",
     "duration",
+    "at",
+    "base",
+    "colors",
+    "captions",
+    "audio",
+    ...THEME_COLORS,
     ...STEP_KINDS,
   ]),
 ];
@@ -282,6 +314,12 @@ function checkReferences(spec: Spec): Issue[] {
   const revealable = new Set([...nodeIds, ...groupIds]);
   spec.steps.forEach((step, i) => {
     const at: IssuePath = ["steps", i];
+    if (step.at !== undefined && spec.voiceover === undefined) {
+      issues.push({
+        path: [...at, "at"],
+        message: "needs a voiceover to anchor to — add voiceover: { captions: captions.json }",
+      });
+    }
     const target = (id: string, path: IssuePath): void => {
       if (!revealable.has(id)) {
         issues.push({ path, message: unknownRef("node or group", id, revealable, nodeAliases) });

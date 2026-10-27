@@ -13,10 +13,90 @@
     },
     "theme": {
       "default": "dark",
-      "type": "string",
-      "enum": [
-        "dark",
-        "light"
+      "description": "\"dark\", \"light\", or { base, colors } to override colors",
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "dark",
+            "light"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "base": {
+              "default": "dark",
+              "description": "Theme to start from",
+              "type": "string",
+              "enum": [
+                "dark",
+                "light"
+              ]
+            },
+            "colors": {
+              "default": {},
+              "description": "Hex color overrides",
+              "type": "object",
+              "properties": {
+                "background": {
+                  "type": "string",
+                  "pattern": "^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                },
+                "node": {
+                  "type": "string",
+                  "pattern": "^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                },
+                "nodeBorder": {
+                  "type": "string",
+                  "pattern": "^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                },
+                "text": {
+                  "type": "string",
+                  "pattern": "^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                },
+                "mutedText": {
+                  "type": "string",
+                  "pattern": "^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                },
+                "edge": {
+                  "type": "string",
+                  "pattern": "^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                },
+                "packet": {
+                  "type": "string",
+                  "pattern": "^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                },
+                "packetText": {
+                  "type": "string",
+                  "pattern": "^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                },
+                "groupFill": {
+                  "type": "string",
+                  "pattern": "^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                },
+                "groupBorder": {
+                  "type": "string",
+                  "pattern": "^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                },
+                "danger": {
+                  "type": "string",
+                  "pattern": "^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                },
+                "highlight": {
+                  "type": "string",
+                  "pattern": "^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                },
+                "captionFill": {
+                  "type": "string",
+                  "pattern": "^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
       ]
     },
     "canvas": {
@@ -204,6 +284,12 @@
                     "pattern": "^(\\d+(?:\\.\\d+)?)(ms|s)$"
                   }
                 ]
+              },
+              "at": {
+                "description": "Start this step when the phrase is spoken in the voiceover",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
               }
             },
             "required": [
@@ -253,6 +339,12 @@
                     "pattern": "^(\\d+(?:\\.\\d+)?)(ms|s)$"
                   }
                 ]
+              },
+              "at": {
+                "description": "Start this step when the phrase is spoken in the voiceover",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
               }
             },
             "required": [
@@ -301,6 +393,12 @@
                     "pattern": "^(\\d+(?:\\.\\d+)?)(ms|s)$"
                   }
                 ]
+              },
+              "at": {
+                "description": "Start this step when the phrase is spoken in the voiceover",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
               }
             },
             "required": [
@@ -351,6 +449,12 @@
                     "pattern": "^(\\d+(?:\\.\\d+)?)(ms|s)$"
                   }
                 ]
+              },
+              "at": {
+                "description": "Start this step when the phrase is spoken in the voiceover",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
               }
             },
             "required": [
@@ -373,6 +477,12 @@
                     "pattern": "^(\\d+(?:\\.\\d+)?)(ms|s)$"
                   }
                 ]
+              },
+              "at": {
+                "description": "Start this step when the phrase is spoken in the voiceover",
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
               }
             },
             "required": [
@@ -382,6 +492,28 @@
           }
         ]
       }
+    },
+    "voiceover": {
+      "type": "object",
+      "properties": {
+        "captions": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Word timestamps: a JSON array of { text, startMs, endMs } (Remotion Caption)"
+        },
+        "audio": {
+          "description": "Narration audio (mp3, wav, m4a, …)",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        }
+      },
+      "required": [
+        "captions"
+      ],
+      "additionalProperties": false,
+      "description": "Narration that steps can anchor to with `at`"
     }
   },
   "required": [

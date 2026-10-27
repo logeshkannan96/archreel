@@ -14,7 +14,7 @@ export type LoadResult = { ok: true; spec: Spec } | { ok: false; issues: Located
 export const MAX_SPEC_BYTES = 1_000_000;
 
 /** Text fields where YAML's number typing (`label: 429`) is never what the author meant. */
-const TEXT_KEYS = new Set(["label", "caption"]);
+const TEXT_KEYS = new Set(["label", "caption", "at"]);
 
 /**
  * Parse YAML (or JSON, a YAML subset) and validate, attaching source locations to issues.
@@ -48,12 +48,25 @@ export function loadSpec(source: string): LoadResult {
 
   const result = validateSpec(data);
   if (result.ok) return result;
-  const issues: LocatedIssue[] = result.issues.map((issue) => ({
+  return { ok: false, issues: locate(doc, lineCounter, result.issues) };
+}
+
+/** Attaches source locations to issues found after loading (e.g. voiceover anchors). */
+export function locateIssues(source: string, issues: readonly Issue[]): LocatedIssue[] {
+  const lineCounter = new LineCounter();
+  try {
+    return locate(parseDocument(source, { lineCounter }), lineCounter, issues);
+  } catch {
+    return [...issues];
+  }
+}
+
+function locate(doc: Document, lc: LineCounter, issues: readonly Issue[]): LocatedIssue[] {
+  const located: LocatedIssue[] = issues.map((issue) => ({
     ...issue,
-    ...linePos(lineCounter, offsetOf(doc, issue.path)),
+    ...linePos(lc, offsetOf(doc, issue.path)),
   }));
-  issues.sort((a, b) => (a.line ?? 0) - (b.line ?? 0) || (a.col ?? 0) - (b.col ?? 0));
-  return { ok: false, issues };
+  return located.sort((a, b) => (a.line ?? 0) - (b.line ?? 0) || (a.col ?? 0) - (b.col ?? 0));
 }
 
 const QUOTE_HINT = ' (if a value contains ": ", wrap it in quotes, e.g. label: "Retry-After: 30")';

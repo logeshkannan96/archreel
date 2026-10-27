@@ -16,6 +16,24 @@ export const ICONS = [
 ] as const;
 
 export const FAIL_EFFECTS = ["shake", "flash"] as const;
+export const THEME_NAMES = ["dark", "light"] as const;
+/** Colors a custom theme can override. */
+export const THEME_COLORS = [
+  "background",
+  "node",
+  "nodeBorder",
+  "text",
+  "mutedText",
+  "edge",
+  "packet",
+  "packetText",
+  "groupFill",
+  "groupBorder",
+  "danger",
+  "highlight",
+  "captionFill",
+] as const;
+export type ThemeColor = (typeof THEME_COLORS)[number];
 export const STEP_KINDS = ["reveal", "flow", "highlight", "fail", "pause"] as const;
 export type StepKind = (typeof STEP_KINDS)[number];
 
@@ -29,6 +47,7 @@ const MAX_NODES = 500;
 const MAX_GROUPS = 100;
 const MAX_EDGES = 2000;
 const MAX_STEPS = 2000;
+const MAX_PATH_LENGTH = 500;
 export const MAX_STEP_MS = 60_000;
 
 const Id = z
@@ -58,6 +77,44 @@ export const Duration = z
   .meta({ description: 'Seconds as a number, or a string like "1.2s" or "500ms"' });
 
 const Text = z.string().min(1).max(MAX_TEXT_LENGTH);
+
+// Hex only: CSS functions like url() would let a spec fetch remote resources mid-render.
+const Color = z
+  .string()
+  .regex(
+    /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/,
+    'must be a hex color like "#38bdf8" or "#38bdf880"',
+  );
+
+const colorShape = Object.fromEntries(THEME_COLORS.map((k) => [k, Color.optional()])) as Record<
+  ThemeColor,
+  z.ZodOptional<typeof Color>
+>;
+
+export const CustomTheme = z.strictObject({
+  base: z.enum(THEME_NAMES).default("dark").meta({ description: "Theme to start from" }),
+  colors: z.strictObject(colorShape).default({}).meta({ description: "Hex color overrides" }),
+});
+
+/** A file next to the spec. Must stay inside the spec's folder. */
+const RelativePath = z
+  .string()
+  .min(1)
+  .max(MAX_PATH_LENGTH)
+  .refine((p) => !/^(?:[\\/]|[A-Za-z]:)/.test(p), "must be a relative path")
+  .refine(
+    (p) => !p.split(/[\\/]/).includes(".."),
+    'must not contain ".." (files must be inside the spec\'s folder)',
+  );
+
+export const VoiceoverSchema = z
+  .strictObject({
+    captions: RelativePath.meta({
+      description: "Word timestamps: a JSON array of { text, startMs, endMs } (Remotion Caption)",
+    }),
+    audio: RelativePath.optional().meta({ description: "Narration audio (mp3, wav, m4a, …)" }),
+  })
+  .meta({ description: "Narration that steps can anchor to with `at`" });
 
 const Dimension = z
   .int()
@@ -91,9 +148,14 @@ const stepDuration = Duration.optional().meta({
   description: "How long this step plays; defaults per step kind",
 });
 
+const stepAt = Text.optional().meta({
+  description: "Start this step when the phrase is spoken in the voiceover",
+});
+
 export const RevealStep = z.strictObject({
   reveal: z.array(Id).min(1).max(MAX_NODES).meta({ description: "Node or group ids to fade in" }),
   duration: stepDuration,
+  at: stepAt,
 });
 
 export const FlowStep = z.strictObject({
@@ -103,6 +165,7 @@ export const FlowStep = z.strictObject({
     label: Text.optional(),
   }),
   duration: stepDuration,
+  at: stepAt,
 });
 
 export const HighlightStep = z.strictObject({
@@ -111,6 +174,7 @@ export const HighlightStep = z.strictObject({
     caption: Text.optional(),
   }),
   duration: stepDuration,
+  at: stepAt,
 });
 
 export const FailStep = z.strictObject({
@@ -120,10 +184,12 @@ export const FailStep = z.strictObject({
     label: Text.optional(),
   }),
   duration: stepDuration,
+  at: stepAt,
 });
 
 export const PauseStep = z.strictObject({
   pause: Duration,
+  at: stepAt,
 });
 
 /** One schema per step kind, keyed by the kind's action key. */
@@ -141,7 +207,10 @@ export const SpecSchema = z
   .strictObject({
     $schema: z.string().optional().meta({ description: "JSON Schema URL, for editors" }),
     version: z.literal(1),
-    theme: z.enum(["dark", "light"]).default("dark"),
+    theme: z
+      .union([z.enum(THEME_NAMES), CustomTheme])
+      .default("dark")
+      .meta({ description: '"dark", "light", or { base, colors } to override colors' }),
     canvas: z
       .strictObject({
         width: Dimension.default(1920),
@@ -153,12 +222,14 @@ export const SpecSchema = z
     groups: z.array(GroupSchema).max(MAX_GROUPS).default([]),
     edges: z.array(EdgeSchema).max(MAX_EDGES).default([]),
     steps: z.array(StepSchema).max(MAX_STEPS).default([]),
+    voiceover: VoiceoverSchema.optional(),
   })
   .meta({ title: "archreel spec", description: "Declarative architecture explainer video" });
 
 export type Spec = z.output<typeof SpecSchema>;
 export type SpecInput = z.input<typeof SpecSchema>;
 export type Step = z.output<typeof StepSchema>;
+export type ThemeSpec = Spec["theme"];
 
 /** Identity helper for authoring specs in TypeScript with editor completion. */
 export const defineSpec = (spec: SpecInput): SpecInput => spec;
