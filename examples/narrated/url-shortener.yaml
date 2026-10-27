@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=../../packages/schema/archreel.schema.json
+# Steps with `at` start when their phrase is spoken. captions.json holds word
+# timestamps for this script (Remotion's Caption format, e.g. from Whisper):
+#
+#   A user clicks a short link. The load balancer forwards the request to the API.
+#   The API checks Redis first. Cache miss! So it falls back to Postgres, the
+#   source of truth. Finally, the API answers with a redirect, and the user lands
+#   on the page.
+#
+# Record yourself reading it (or transcribe your own narration), then add
+# `audio: narration.mp3` under voiceover.
+version: 1
+theme: { base: dark, colors: { packet: "#a3e635", highlight: "#22d3ee" } }
+
+voiceover:
+  captions: captions.json
+
+nodes:
+  - { id: client, label: Client, icon: user }
+  - { id: alb, label: ALB, icon: aws/alb }
+  - { id: api, label: API, icon: server, group: vpc }
+  - { id: redis, label: Redis, icon: redis, group: vpc }
+  - { id: pg, label: Postgres, icon: postgres, group: vpc }
+
+groups:
+  - { id: vpc, label: VPC }
+
+edges:
+  - { from: client, to: alb }
+  - { from: alb, to: api }
+  - { from: api, to: redis }
+  - { from: api, to: pg }
+
+steps:
+  - reveal: [client]
+    at: a user
+  - flow: { from: client, to: alb, label: "GET /abc123" }
+    at: load balancer
+  - flow: { from: alb, to: api }
+  - flow: { from: api, to: redis }
+    at: checks redis
+  - fail: { node: redis, label: cache miss }
+    at: cache miss
+  - flow: { from: api, to: pg, label: SELECT }
+    at: falls back
+  - highlight: { nodes: [pg], caption: Source of truth }
+    at: source of truth
+  - flow: { from: api, to: alb, label: 301 Redirect }
+    at: answers with a redirect
+  - flow: { from: alb, to: client }
+    at: the user lands
